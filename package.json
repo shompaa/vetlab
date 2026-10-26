@@ -1,0 +1,22 @@
+{
+  "name": "vet-app",
+  "version": "1.0.0",
+  "description": "VetLab: análisis de hemogramas y perfil bioquímico veterinario, 100% en el navegador",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "test": "node test/clasificar.js && node test/agregar.js && node test/muestra.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "@fontsource-variable/caveat": "^5.3.0",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0",
+    "exceljs": "^4.4.0",
+    "next": "^16.3.8",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "private": true
+}

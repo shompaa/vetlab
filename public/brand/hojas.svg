@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 160">
+  <g fill="#bfe3da" opacity=".7">
+    <path d="M40 160C10 120 20 70 70 40c10 40 0 90-30 120Z"/>
+    <path d="M90 160c-10-50 20-100 70-120 10 50-10 100-70 120Z"/>
+    <path d="M150 160c0-40 20-70 60-90 4 40-10 75-60 90Z"/>
+  </g>
+  <g stroke="#9fd1c6" stroke-width="2" fill="none" opacity=".8">
+    <path d="M40 160C42 120 52 80 70 40"/>
+    <path d="M90 160c14-40 36-80 70-120"/>
+  </g>
+</svg>

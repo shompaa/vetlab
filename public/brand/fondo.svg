@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1672 941" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <symbol id="p" viewBox="0 0 24 24">
+      <ellipse cx="5.500" cy="11" rx="2" ry="2.800" transform="rotate(-20 5.500 11)"/>
+      <ellipse cx="9.500" cy="6.200" rx="2.100" ry="3"/>
+      <ellipse cx="14.500" cy="6.200" rx="2.100" ry="3"/>
+      <ellipse cx="18.500" cy="11" rx="2" ry="2.800" transform="rotate(20 18.500 11)"/>
+      <path d="M12 12c-3.200 0-6 3.200-6 5.800 0 1.700 1.400 2.700 3 2.700 1.200 0 1.900-.5 3-.5s1.800.5 3 .5c1.600 0 3-1 3-2.700 0-2.600-2.800-5.800-6-5.800Z"/>
+    </symbol>
+  </defs>
+  <rect width="1672" height="941" fill="#f3efe7"/>
+  <g fill="#bfe3da" opacity=".55">
+    <ellipse cx="40" cy="170" rx="150" ry="210"/>
+    <ellipse cx="1650" cy="150" rx="170" ry="230"/>
+    <ellipse cx="1630" cy="800" rx="150" ry="170"/>
+    <ellipse cx="60" cy="860" rx="120" ry="140"/>
+  </g>
+  <g fill="#e1e8d6" opacity=".6">
+    <ellipse cx="30" cy="520" rx="110" ry="160"/>
+    <ellipse cx="1660" cy="480" rx="100" ry="150"/>
+  </g>
+  <g fill="#a9d6cc" opacity=".55">
+    <use href="#p" x="14" y="128" width="54" height="54" transform="rotate(-12 41 155)"/>
+    <use href="#p" x="30" y="436" width="46" height="46" transform="rotate(10 53 459)"/>
+    <use href="#p" x="22" y="728" width="50" height="50" transform="rotate(-8 47 753)"/>
+    <use href="#p" x="248" y="14" width="40" height="40" transform="rotate(14 268 34)"/>
+    <use href="#p" x="1424" y="10" width="44" height="44" transform="rotate(-10 1446 32)"/>
+    <use href="#p" x="1594" y="58" width="48" height="48" transform="rotate(12 1618 82)"/>
+    <use href="#p" x="1604" y="278" width="50" height="50" transform="rotate(-6 1629 303)"/>
+    <use href="#p" x="1590" y="610" width="52" height="52" transform="rotate(10 1616 636)"/>
+    <use href="#p" x="1604" y="716" width="48" height="48" transform="rotate(-14 1628 740)"/>
+    <use href="#p" x="12" y="838" width="52" height="52" transform="rotate(8 38 864)"/>
+    <use href="#p" x="1540" y="880" width="38" height="38" transform="rotate(-10 1559 899)"/>
+  </g>
+</svg>
