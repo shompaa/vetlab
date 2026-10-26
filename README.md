@@ -50,7 +50,7 @@ Requiere Node.js 20 o superior.
 npm install
 npm run dev      # http://localhost:3000
 npm test
-npm run build    # genera out/ (sitio estático, basePath /vet-app)
+npm run build    # genera out/ (sitio estático; basePath /vet-app, o BASE_PATH si está definida)
 ```
 
 Las pruebas con un PDF real (`test/muestra.js`) solo corren si existe `fixtures/muestra-canino.pdf` en tu equipo.
@@ -65,6 +65,6 @@ Estructura:
 
 ## Publicar en GitHub Pages
 
-1. Crea el repositorio con el nombre exacto `vet-app` (el `basePath` depende de él).
+1. Crea el repositorio en GitHub (con cualquier nombre; la ruta base se toma sola del nombre del repositorio).
 2. En **Settings → Pages**, elige **Source: GitHub Actions**.
 3. Cada push a `main` ejecuta `.github/workflows/deploy.yml`: corre los tests, compila y publica.
