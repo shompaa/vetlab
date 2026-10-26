@@ -4,3 +4,4 @@ out/
 fixtures/
 *.pdf
 .env*
+.archify/
