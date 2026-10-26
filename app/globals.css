@@ -303,4 +303,40 @@ td.cero { color: #aab4b6; font-weight: 400; }
   .app { box-shadow: none; border: 0; }
   .kpi, .chart-card, .card { break-inside: avoid; }
   * { animation: none !important; }
+  .kpis { grid-template-columns: repeat(4, 1fr) !important; gap: 8px; margin-bottom: 8px; }
+  .kpi { min-height: 0; padding: 8px 12px; grid-template-columns: 1fr; gap: 0; }
+  .kpi-icon { display: none; }
+  .kpi span { font-size: 11px; }
+  .kpi strong { font-size: 26px; margin-top: 2px; }
+  .kpi small { font-size: 10px; margin-top: 2px; }
+  .kpi-bar { height: 4px; margin-top: 4px; }
+  .charts { grid-template-columns: repeat(3, 1fr) !important; gap: 8px; margin-bottom: 8px; }
+  .charts .chart-card:last-child { grid-column: auto !important; }
+  .chart-card { padding: 10px 12px; }
+  .chart-card h3 { font-size: 13px; margin-bottom: 4px; }
+  .cap { font-size: 10px; margin-bottom: 8px; }
+  .donut { width: 110px; height: 110px; }
+  .donut-area { gap: 10px; }
+  .legend { font-size: 11px; gap: 8px; }
+  .vchart { grid-template-rows: 120px auto auto; margin-top: 14px; }
+  .hrow { grid-template-columns: 90px 1fr 56px; padding: 5px 0; font-size: 11px; }
+  .hrow .track { height: 14px; }
+  .donut::after { width: 66px; height: 66px; }
+  .donut-label strong { font-size: 24px; }
+  .donut-label small { font-size: 10px; }
+  .header { grid-template-columns: 150px minmax(0, 1fr) 260px !important; gap: 12px; padding: 8px 16px 6px; }
+  .hero h1 { font-size: 30px; }
+  .hero p { font-size: 12px; margin-top: 6px; }
+  .mascotas { grid-column: auto !important; height: 90px; }
+  .mascotas .trio { width: 230px; bottom: 0; }
+  .lema { left: 0; top: 0; font-size: 16px; }
+  .lema, .link-btn { display: none; }
+  .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .charts { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .tabla-imp { margin-bottom: 8px; padding: 10px 12px; break-inside: avoid; }
+  .tabla-imp h3 { font-size: 13px; margin: 0 0 6px; }
+  .tabla-imp table { width: 100%; border-collapse: collapse; font-size: 10.500px; }
+  .tabla-imp th, .tabla-imp td { padding: 3px 6px; text-align: center; border-bottom: 1px solid #eee8df; }
+  .tabla-imp th:first-child, .tabla-imp td:first-child { text-align: left; font-weight: 600; }
+  .tabla-imp th { background: #f6f3ec; }
 }

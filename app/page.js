@@ -266,6 +266,27 @@ function Tarjeta({ icono, t, n, p, pct }) {
   );
 }
 
+function TablasImpresion({ rs }) {
+  const paneles = useMemo(() => Object.entries(PANELES).map(([k, p]) => ({ k, nombre: p.nombre, filas: Object.entries(resumen(rs, k).porAnalito).filter(([, c]) => c.medidos > 0 || c.noFiable > 0) })), [rs]);
+  return paneles.map(({ k, nombre, filas }) => (
+    <article key={k} className="card tabla-imp">
+      <h3>Detalle por parámetro · {nombre}</h3>
+      <table>
+        <thead>
+          <tr>{['Parámetro', 'Medidos', 'Normal', 'Alto', 'Bajo', 'Leve', 'Moderada', '% alterado', 'Sin dato', 'No fiable'].map((t) => <th key={t}>{t}</th>)}</tr>
+        </thead>
+        <tbody>
+          {filas.map(([a, c]) => (
+            <tr key={a}>
+              <td>{NOMBRES[a]}</td><td>{c.medidos}</td><td>{c.normal}</td><td>{c.alto}</td><td>{c.bajo}</td><td>{c.leve}</td><td>{c.moderada}</td><td>{pc(c.pct)}</td><td>{c.noMedido + c.sinRef}</td><td>{c.noFiable}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </article>
+  ));
+}
+
 function Resultados({ tanda, nuevaTanda }) {
   const [f, setF] = useState({});
   const [panel, setPanel] = useState('hemograma');
@@ -411,14 +432,13 @@ function Resultados({ tanda, nuevaTanda }) {
         </article>
       </div>
 
-      <article className="card table-card">
+      <article className="card table-card no-print">
         <h3><Informe size={22} /> Detalle por parámetro</h3>
         <nav className="tabs sub no-print" aria-label="Tipo de examen">
           {Object.entries(PANELES).map(([k, p]) => (
             <button key={k} className="tab" aria-current={panel === k ? 'page' : undefined} onClick={() => cambiarPanel(k)}>{p.nombre}</button>
           ))}
         </nav>
-        <h4 className="solo-print">{PANELES[panel].nombre}</h4>
         <div className="table-wrap">
           <table>
             <thead>
@@ -451,6 +471,8 @@ function Resultados({ tanda, nuevaTanda }) {
         </div>
         <p className="nota">% alterado = alterados sobre los pacientes con ese parámetro medido y fiable. Severidad solo donde existe escala publicada (VCOG-CTCAE v2). Haz clic en una fila para ver qué archivos cumplen.{sinDatos.length > 0 && ` Sin datos en esta tanda: ${sinDatos.join(', ')}.`}</p>
       </article>
+
+      <div className="solo-print"><TablasImpresion rs={rs} /></div>
 
       <article className="card pacientes-card" ref={refPac}>
         <h3>
