@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 const BASE = process.env.BASE ?? '';
 
-export const metadata = { title: 'Página no encontrada · VetLab' };
+export const metadata = { title: 'Página no encontrada · HemoPuppy' };
 
 export default function NoEncontrada() {
   return (

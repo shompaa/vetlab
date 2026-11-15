@@ -5,7 +5,7 @@ import './globals.css';
 
 const BASE = process.env.BASE ?? '';
 
-export const metadata = { title: 'VetLab · Análisis de hemogramas', description: 'Estadísticas de hemogramas por tanda' };
+export const metadata = { title: 'HemoPuppy · Análisis de hemogramas', description: 'Estadísticas de hemogramas por tanda' };
 
 export default function RootLayout({ children }) {
   return (
