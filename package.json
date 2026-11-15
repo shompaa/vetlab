@@ -1,11 +1,13 @@
 {
   "name": "vet-app",
   "version": "1.0.0",
-  "description": "VetLab: análisis de hemogramas y perfil bioquímico veterinario, 100% en el navegador",
+  "description": "HemoPuppy: análisis de hemogramas y perfil bioquímico veterinario, 100% en el navegador",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "test": "node test/clasificar.js && node test/agregar.js && node test/muestra.js"
+    "test": "node test/clasificar.js && node test/agregar.js && node test/muestra.js",
+    "predev": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs')\"",
+    "prebuild": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs')\""
   },
   "type": "module",
   "dependencies": {
