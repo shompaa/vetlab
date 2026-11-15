@@ -1,4 +1,4 @@
-# VetLab
+# HemoPuppy
 
 Análisis estadístico de hemogramas y perfil bioquímico veterinario, a partir de los informes en PDF de Analítica Lab. Funciona **100% en el navegador**: los PDF se leen en tu equipo, no se envían a ningún servidor y no se guarda historial.
 
@@ -27,7 +27,7 @@ Al recargar la página o vaciar la tanda, los datos se pierden: no hay guardado.
 - **Porcentaje alterado:** pacientes alterados sobre los que tienen ese parámetro medido y fiable. Un paciente está alterado si tiene al menos un parámetro alto o bajo.
 - Plaquetas con agregados en el frotis se marcan "no fiables" y quedan fuera del conteo.
 
-> Las escalas de severidad del perfil bioquímico están **pendientes de verificar** contra la tabla original (`src/reglas.js`). Esta herramienta es de apoyo estadístico: la interpretación de los exámenes corresponde al médico veterinario.
+> Las escalas de severidad se verificaron contra la tabla de perros de LeBlanc et al. 2021 (hemograma y bioquímica). Esta herramienta es de apoyo estadístico: la interpretación de los exámenes corresponde al médico veterinario.
 
 ## Arquitectura
 
@@ -35,7 +35,7 @@ Flujo de datos, desde la publicación en GitHub Pages hasta el dashboard y las e
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/arquitectura-oscuro.png">
-  <img src="docs/arquitectura-claro.png" alt="Diagrama de flujo de datos de VetLab: repositorio, GitHub Pages, subida de PDF, lector pdfjs, clasificador, agregación y salidas (dashboard, Excel y PDF)">
+  <img src="docs/arquitectura-claro.png" alt="Diagrama de flujo de datos de HemoPuppy: repositorio, GitHub Pages, subida de PDF, lector pdfjs, clasificador, agregación y salidas (dashboard, Excel y PDF)">
 </picture>
 
 ## Datos de pacientes

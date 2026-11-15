@@ -5,7 +5,6 @@ const comun = {
   plaquetas: { bajo: { moderada: 100000, g3: 50000 } },
 };
 
-// TODO: (bioquimico:fix) verificar estos umbrales contra la tabla original de LeBlanc 2021 (PMC8248125)
 const bioquimica = {
   albumina: { bajo: { moderada: 2.0, g3: 1.5 } },
   glucosa: { bajo: { moderada: 55, g3: 40 }, alto: { moderada: 160, g3: 250 } },
