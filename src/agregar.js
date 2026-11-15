@@ -69,6 +69,11 @@ export function resumen(rs, panel = 'hemograma') {
     pctAlterados: pct(conAlterados, total),
     conModerada,
     pctModerada: pct(conModerada, total),
+    origen: {
+      hemograma: rs.filter((r) => Object.values(r.hemograma).some(alterado)).length,
+      bioquimico: rs.filter((r) => Object.values(r.bioquimico).some(alterado)).length,
+      ambos: rs.filter((r) => Object.values(r.hemograma).some(alterado) && Object.values(r.bioquimico).some(alterado)).length,
+    },
     plaquetas: porAnalito.plaquetas && {
       noFiables,
       pctNoFiables: pct(noFiables, total),
