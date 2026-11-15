@@ -81,3 +81,10 @@ export const Corazon = ({ size = 16 }) => (
     <path d="M12 21s-8-5.200-8-11a4.500 4.500 0 0 1 8-2.800A4.500 4.500 0 0 1 20 10c0 5.800-8 11-8 11Z" />
   </svg>
 );
+
+export const Capas = ({ size = 22 }) => (
+  <svg {...base} width={size} height={size}>
+    <path d="m12 3 9 4.500-9 4.500-9-4.500L12 3Z" />
+    <path d="m3 12 9 4.500 9-4.500M3 16.500l9 4.500 9-4.500" />
+  </svg>
+);

@@ -4,7 +4,7 @@ import { filtrarDemografia, opciones, pacientes, resumen, unificarEspecie } from
 import { exportarExcel } from '../src/exportar.js';
 import { PANELES } from '../src/reglas.js';
 import { NOMBRES } from '../src/etiquetas.js';
-import { Alerta, Barras, Candado, Corazon, Excel, Huella, Informe, Nube, Pdf, Refrescar, Usuarios } from './iconos.js';
+import { Alerta, Barras, Candado, Capas, Corazon, Excel, Huella, Informe, Nube, Pdf, Refrescar, Usuarios } from './iconos.js';
 
 const MAX = 1000;
 
@@ -90,11 +90,7 @@ export default function Pagina() {
       <main className="app">
         <header className="header">
           <div className="brand">
-            <Huella size={50} />
-            <div>
-              <strong>VetLab</strong>
-              <span>Análisis veterinario</span>
-            </div>
+            <img className="logo" src={`${BASE}/brand/logo.webp`} alt="HemoPuppy, análisis veterinario" />
           </div>
           <div className="hero">
             <h1>Análisis de hemogramas</h1>
@@ -223,7 +219,7 @@ function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso,
 function Donut({ conAlt, total }) {
   const p = total ? (conAlt / total) * 100 : 0;
   return (
-    <div className="donut" role="img" aria-label={`${conAlt} de ${total} pacientes con alteraciones`} style={{ background: `conic-gradient(#ee5d5d 0 ${p}%, #73b8aa 0)` }}>
+    <div className="donut" role="img" aria-label={`${conAlt} de ${total} pacientes con alteraciones`} style={{ background: `conic-gradient(#f26b6b 0 ${p}%, #7cc4b5 0)` }}>
       <div className="donut-label"><strong>{conAlt}</strong><small>pacientes</small></div>
     </div>
   );
@@ -256,6 +252,8 @@ function Histograma({ datos, total }) {
     </div>
   );
 }
+
+const pctDe = (n, t) => (t ? Math.round((n / t) * 1000) / 10 : 0);
 
 function Tarjeta({ icono, t, n, p, pct }) {
   return (
@@ -393,25 +391,30 @@ function Resultados({ tanda, nuevaTanda }) {
 
       <div className="charts">
         <article className="chart-card">
-          <h3>Pacientes con alteraciones</h3>
+          <h3><Usuarios size={22} /> Pacientes con alteraciones</h3>
           <p className="cap">Pacientes con al menos un parámetro fuera de su rango de referencia, en hemograma o bioquímico.</p>
           <div className="donut-area">
             <Donut conAlt={gen.conAlterados} total={gen.total} />
             <div className="legend">
-              <div className="legend-row"><span className="dot" style={{ background: '#ee5d5d' }} /><div>Con alteraciones<br /><b>{pc(gen.pctAlterados)} ({gen.conAlterados})</b></div></div>
+              <div className="legend-row"><span className="dot" style={{ background: '#ee5d5d' }} /><div>Con alteraciones<br /><b>{pc(gen.pctAlterados)} ({gen.conAlterados})</b>
+                <span className="desglose">
+                  <span>En hemograma: <b>{pc(pctDe(gen.origen.hemograma, gen.total))} ({gen.origen.hemograma})</b></span>
+                  <span>En perfil bioquímico: <b>{pc(pctDe(gen.origen.bioquimico, gen.total))} ({gen.origen.bioquimico})</b></span>
+                  <span>En ambos: <b>{pc(pctDe(gen.origen.ambos, gen.total))} ({gen.origen.ambos})</b></span>
+                </span></div></div>
               <div className="legend-row"><span className="dot" style={{ background: '#73b8aa' }} /><div>Sin alteraciones<br /><b>{pc(100 - gen.pctAlterados)} ({gen.sinAlterados})</b></div></div>
             </div>
           </div>
         </article>
 
         <article className="chart-card">
-          <h3>Parámetros alterados por paciente</h3>
+          <h3><Barras size={22} /> Parámetros alterados por paciente</h3>
           <p className="cap">Cuántos pacientes tienen 0, 1, 2… parámetros fuera de rango. La barra verde son los pacientes sin alteraciones.</p>
           <Histograma datos={gen.alteradosPorPaciente} total={gen.total} />
         </article>
 
         <article className="chart-card">
-          <h3>Pacientes alterados por parámetro</h3>
+          <h3><Capas /> Pacientes alterados por parámetro</h3>
           <p className="cap">Los parámetros con más pacientes fuera de rango. <span className="sw alto" /> por sobre el rango · <span className="sw bajo" /> por debajo.</p>
           {top.length ? (
             <div className="hchart">
