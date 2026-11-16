@@ -384,3 +384,25 @@ td.cero { color: #aab4b6; font-weight: 400; }
   .tabla-imp th:first-child, .tabla-imp td:first-child { text-align: left; font-weight: 600; }
   .tabla-imp th { background: #f6f3ec; }
 }
+
+/* Subida: la lista de archivos vive dentro de la zona de arrastre */
+.upload-layout { margin-bottom: 20px; }
+.razas-card { margin-bottom: 20px; }
+.view > .aviso { margin-bottom: 20px; }
+.dz-cabecera { display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; width: 100%; }
+.dz-texto { width: 100%; }
+.dropzone.con-archivos { min-height: 0; justify-content: flex-start; align-items: stretch; padding: 22px 26px; cursor: default; }
+.dropzone.con-archivos::before, .dropzone.con-archivos::after { display: none; }
+.dropzone.con-archivos .dz-cabecera { flex-direction: row; text-align: left; gap: 20px; align-items: center; }
+.dropzone.con-archivos .dz-texto { flex: 1; }
+.dropzone.con-archivos .upload-icon { width: 64px; height: 64px; border-radius: 18px; margin: 0; flex: none; }
+.dropzone.con-archivos .upload-icon::before, .dropzone.con-archivos .upload-icon::after { display: none; }
+.dropzone.con-archivos h2 { font-size: 26px; margin: 0 0 4px; }
+.dropzone.con-archivos p { font-size: 14px; line-height: 1.45; }
+.dropzone.con-archivos .pick-btn { margin-top: 0; padding: 12px 22px; font-size: 15px; flex: none; }
+.dz-archivos { width: 100%; margin-top: 18px; padding-top: 16px; border-top: 1px dashed #bfe5df; cursor: default; text-align: left; }
+.dz-archivos .files-head { margin-bottom: 12px; }
+.dz-archivos .file-list { max-height: 340px; }
+@media (max-width: 820px) {
+  .dropzone.con-archivos .dz-cabecera { flex-direction: column; text-align: center; }
+}

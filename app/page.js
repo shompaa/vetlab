@@ -131,21 +131,72 @@ function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso,
   const ocupado = progreso !== null;
   const q = buscar.trim().toLowerCase();
   const visibles = files.map((f, i) => ({ f, i })).filter(({ f }) => f.name.toLowerCase().includes(q));
+  const hay = files.length > 0;
   return (
     <section className="view" aria-label="Subida de archivos">
       <div className="upload-layout">
         <div
-          className={`dropzone ${sobre ? 'drag' : ''}`}
+          className={`dropzone ${sobre ? 'drag' : ''} ${hay ? 'con-archivos' : ''}`}
           onClick={() => input.current.click()}
           onDragOver={(e) => { e.preventDefault(); setSobre(true); }}
           onDragLeave={() => setSobre(false)}
           onDrop={(e) => { e.preventDefault(); setSobre(false); agregar(e.dataTransfer.files); }}
         >
-          <div className="upload-icon"><Nube /></div>
-          <h2>Arrastra tus PDF aquí</h2>
-          <p>Hasta {MAX} archivos por tanda.<br />Solo se procesan los datos necesarios del hemograma y del perfil bioquímico.</p>
-          <button type="button" className="pick-btn" onClick={(e) => { e.stopPropagation(); input.current.click(); }}><Carpeta /> Elegir archivos</button>
+          <div className="dz-cabecera">
+            <div className="upload-icon"><Nube /></div>
+            <div className="dz-texto">
+              <h2>Arrastra tus PDF aquí</h2>
+              <p>Hasta {MAX} archivos por tanda.<br />Solo se procesan los datos necesarios del hemograma y del perfil bioquímico.</p>
+            </div>
+            <button type="button" className="pick-btn" onClick={(e) => { e.stopPropagation(); input.current.click(); }}><Carpeta /> {hay ? 'Agregar más' : 'Elegir archivos'}</button>
+          </div>
           <input ref={input} type="file" accept=".pdf,application/pdf" multiple hidden onChange={(e) => { agregar(e.target.files); e.target.value = ''; }} />
+
+          {hay && (
+            <div className="dz-archivos" onClick={(e) => e.stopPropagation()}>
+              <div className="files-head">
+                <h3 role="status">{files.length} archivo(s) en la tanda{files.length >= MAX ? ' (límite alcanzado)' : ''}</h3>
+                <div className="buscar-wrap">
+                  <Lupa />
+                  <input className="buscar" type="search" aria-label="Buscar entre los archivos subidos" placeholder="Buscar archivo por nombre…" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
+                </div>
+                <div className="actions">
+                  <button className="btn primary" disabled={ocupado} onClick={analizar}><Barras size={18} /> Analizar tanda</button>
+                  <button className="btn" disabled={ocupado} onClick={() => { setFiles([]); setBuscar(''); }}><Basura /> Vaciar</button>
+                </div>
+              </div>
+              {fallo && <div className="aviso error" role="alert" style={{ marginBottom: 12 }}>No se pudo analizar la tanda: {fallo}. Inténtalo de nuevo.</div>}
+              {ocupado ? (
+                <div className="analizando">
+                  <img src={`${BASE}/brand/perro-negro-muestra.webp`} alt="" height="72" />
+                  <div style={{ flex: 1 }}>
+                    <strong>Analizando… {Math.round(progreso * 100)}%</strong>
+                    <div className="bar" role="progressbar" aria-valuenow={Math.round(progreso * 100)} aria-valuemin={0} aria-valuemax={100}><div style={{ width: `${progreso * 100}%` }} /></div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {q && <p className="cap" role="status">{visibles.length} de {files.length} archivo(s) coinciden con “{buscar.trim()}”.</p>}
+                  {visibles.length ? (
+                    <div className="file-list">
+                      {visibles.map(({ f, i }) => (
+                        <div className="file-row" key={f.name + f.size + i}>
+                          <div className="file-icon"><Pdf size={22} /></div>
+                          <div>
+                            <strong title={f.name}>{f.name}</strong>
+                            <small>{mb(f.size)}</small>
+                          </div>
+                          <button className="remove" aria-label={`Quitar ${f.name}`} onClick={() => setFiles((p) => p.filter((_, j) => j !== i))}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-files">Ningún archivo coincide con la búsqueda.</div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <aside className="upload-side">
@@ -156,8 +207,6 @@ function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso,
           </div>
         </aside>
       </div>
-
-      <RazasFuera razas={razas} resultados={resultados} abierto />
 
       {repetidos.length > 0 && (
         <div className="aviso" role="alert">
@@ -170,51 +219,7 @@ function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso,
         </div>
       )}
 
-      <div className="card files-card files-main">
-        <div className="files-head">
-          <h3 role="status">{files.length} archivo(s) en la tanda{files.length >= MAX ? ' (límite alcanzado)' : ''}</h3>
-          <div className="buscar-wrap">
-            <Lupa />
-            <input className="buscar" type="search" aria-label="Buscar entre los archivos subidos" placeholder="Buscar archivo por nombre…" value={buscar} onChange={(e) => setBuscar(e.target.value)} disabled={!files.length} />
-          </div>
-          <div className="actions">
-            <button className="btn primary" disabled={!files.length || ocupado} onClick={analizar}><Barras size={18} /> Analizar tanda</button>
-            <button className="btn" disabled={!files.length || ocupado} onClick={() => { setFiles([]); setBuscar(''); }}><Basura /> Vaciar</button>
-          </div>
-        </div>
-        {fallo && <div className="aviso error" role="alert" style={{ marginBottom: 12 }}>No se pudo analizar la tanda: {fallo}. Inténtalo de nuevo.</div>}
-        {ocupado ? (
-          <div className="analizando">
-            <img src={`${BASE}/brand/perro-negro-muestra.webp`} alt="" height="72" />
-            <div style={{ flex: 1 }}>
-              <strong>Analizando… {Math.round(progreso * 100)}%</strong>
-              <div className="bar" role="progressbar" aria-valuenow={Math.round(progreso * 100)} aria-valuemin={0} aria-valuemax={100}><div style={{ width: `${progreso * 100}%` }} /></div>
-            </div>
-          </div>
-        ) : files.length ? (
-          <>
-            {q && <p className="cap" role="status">{visibles.length} de {files.length} archivo(s) coinciden con “{buscar.trim()}”.</p>}
-            {visibles.length ? (
-              <div className="file-list">
-                {visibles.map(({ f, i }) => (
-                  <div className="file-row" key={f.name + f.size + i}>
-                    <div className="file-icon"><Pdf size={22} /></div>
-                    <div>
-                      <strong title={f.name}>{f.name}</strong>
-                      <small>{mb(f.size)}</small>
-                    </div>
-                    <button className="remove" aria-label={`Quitar ${f.name}`} onClick={() => setFiles((p) => p.filter((_, j) => j !== i))}>×</button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-files">Ningún archivo coincide con la búsqueda.</div>
-            )}
-          </>
-        ) : (
-          <div className="empty-files">Aún no hay archivos seleccionados.</div>
-        )}
-      </div>
+      <RazasFuera razas={razas} resultados={resultados} abierto />
 
       <div className="session-bar">
         <span className="sb-izq"><Info /> Los PDF se leen en tu navegador y no se envían a ningún servidor. La tanda es temporal: al vaciar o recargar, los datos no se conservan.</span>
