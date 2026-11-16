@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "test": "node test/clasificar.js && node test/agregar.js && node test/muestra.js",
+    "test": "node test/clasificar.js && node test/agregar.js && node test/muestra.js && node test/lector.js",
     "predev": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs')\"",
     "prebuild": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs')\""
   },

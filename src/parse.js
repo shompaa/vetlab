@@ -25,17 +25,6 @@ function filas(items) {
 
 const col = (fila, [a, b]) => fila.filter((i) => i.x >= a && i.x < b).map((i) => i.s).join('');
 
-function rango(txt, analito, def) {
-  if (!txt) return [null, null];
-  const t = txt.replace(/[–—]/g, '-').trim();
-  const div = def.refDiv ?? 1;
-  const tope = /^<\s*([\d.,]+)$/.exec(t);
-  if (tope) return [0, num(tope[1], def.ref) / div];
-  const p = t.split('-').map((s) => s.trim());
-  if (p.length !== 2 || p.some((s) => !/^[\d.,]+$/.test(s))) throw new Error(`referencia ilegible en ${analito}: "${txt}"`);
-  return p.map((s) => num(s, def.ref) / div);
-}
-
 export function edadAnios(txt) {
   const m = /(\d+(?:[.,]\d+)?)\s*(año|mes|semana|dia)/i.exec(txt ?? '');
   if (!m) return null;
@@ -57,7 +46,7 @@ async function hojas(doc) {
   return hallado;
 }
 
-function leerPanel(clave, items, especie, confiable) {
+export function leerPanel(clave, items, especie, confiable) {
   const panel = PANELES[clave];
   const rows = filas(items);
   const claves = Object.entries(panel.analitos).map(([k, v]) => [k, compacta(v.etiqueta)]).sort((x, y) => y[1].length - x[1].length);
@@ -72,20 +61,26 @@ function leerPanel(clave, items, especie, confiable) {
     crudos[k] = f;
   }
   const faltan = Object.keys(panel.analitos).filter((k) => !crudos[k]);
-  if (faltan.length) throw new Error(`layout inesperado en ${panel.nombre}: faltan filas ${faltan.join(', ')} (etiquetas leídas: ${leidas.slice(0, 25).join(' | ')})`);
+  const toleradas = panel.tolerante ? Math.floor(Object.keys(panel.analitos).length / 3) : 0;
+  if (faltan.length > toleradas) throw new Error(`layout inesperado en ${panel.nombre}: faltan filas ${faltan.join(', ')} (etiquetas leídas: ${leidas.slice(0, 25).join(' | ')})`);
+  return armar(clave, crudos, especie, confiable);
+}
 
+function armar(clave, crudos, especie, confiable) {
+  const panel = PANELES[clave];
   const out = {};
-  for (const [k, f] of Object.entries(crudos)) {
-    const def = panel.analitos[k];
-    const v = col(f, panel.col.valor);
+  for (const [k, def] of Object.entries(panel.analitos)) {
+    const f = crudos[k];
+    const v = f ? col(f, panel.col.valor) : '';
+    const [refMin, refMax] = REFERENCIAS[especie][k];
     let valor = v ? num(v, def.valor) : null;
     if (valor !== null && Number.isNaN(valor)) {
-      if (!panel.tolerante) throw new Error(`valor ilegible en ${k}: "${v}"`);
+      if (/coagul/i.test(v)) throw new Error('muestra coagulada: el hemograma no es confiable');
+      if (!panel.tolerante && refMin != null) throw new Error(`valor ilegible en ${k}: "${v}"`);
       valor = null;
     }
-    const [refMin, refMax] = REFERENCIAS[especie]?.[k] ?? rango(col(f, panel.col.ref), k, def);
-    const pct = panel.col.pct ? col(f, panel.col.pct) : '';
-    const u = col(f, panel.col.unidad);
+    const pct = f && panel.col.pct ? col(f, panel.col.pct) : '';
+    const u = f ? col(f, panel.col.unidad) : '';
     const base = { valor, refMin, refMax };
     out[k] = {
       ...base,
@@ -103,9 +98,8 @@ export async function parsearHemograma(buffer) {
     const doc = await task.promise;
     const h = await hojas(doc);
     if (!h.hemograma) throw new Error('layout inesperado: falta el titulo HEMOGRAMA');
-    if (!h.bioquimico) throw new Error('layout inesperado: falta la hoja PERFIL BIOQUIMICO');
     const especie = ESPECIES[norm(h.hemograma.m[1])];
-    if (!especie) throw new Error(`especie sin reglas: ${h.hemograma.m[1]}`);
+    if (!especie || !REFERENCIAS[especie]) throw new Error(`HemoPuppy solo analiza perros: este informe es de ${h.hemograma.m[1]}`);
 
     const cab = {};
     for (const f of filas(h.hemograma.items)) {
@@ -122,7 +116,8 @@ export async function parsearHemograma(buffer) {
       edadAnios: edadAnios(cab.EDAD),
       agregadosPlaquetarios: agregados,
       hemograma: leerPanel('hemograma', h.hemograma.items, especie, (k) => !(k === 'plaquetas' && agregados)),
-      bioquimico: leerPanel('bioquimico', h.bioquimico.items, especie, () => true),
+      sinBioquimico: !h.bioquimico,
+      bioquimico: h.bioquimico ? leerPanel('bioquimico', h.bioquimico.items, especie, () => true) : armar('bioquimico', {}, especie, () => true),
     };
   } finally {
     await task.destroy();
