@@ -177,6 +177,7 @@ button { cursor: pointer; }
 .razas-lista li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 10px; border: 1px solid #eee8df; border-radius: 12px; background: #fff; }
 .razas-lista label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .razas-lista input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--teal); }
+.razas-lista .temporal { font-style: normal; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: #fff3d6; color: #8a5a00; }
 .razas-lista small { color: var(--muted); font-size: 12px; flex: 1 1 240px; }
 .razas-nueva { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
 .razas-nueva input { flex: 1 1 260px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; font: inherit; font-size: 14px; }

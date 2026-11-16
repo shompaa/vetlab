@@ -78,7 +78,9 @@ export default function Pagina() {
     setProgreso(null);
   };
 
+  const razas = useRazas();
   const nuevaTanda = () => {
+    razas.reiniciarTemporales();
     setFiles([]);
     setRepetidos([]);
     setTanda(null);
@@ -114,9 +116,9 @@ export default function Pagina() {
 
         <div id="contenido" key={vista}>
           {vista === 'subida' ? (
-            <Subida {...{ files, setFiles, sobre, setSobre, agregar, analizar, progreso, fallo, input, repetidos, resolverRepetidos }} />
+            <Subida {...{ files, setFiles, sobre, setSobre, agregar, analizar, progreso, fallo, input, repetidos, resolverRepetidos, razas, resultados: tanda?.resultados ?? [] }} />
           ) : (
-            <Resultados tanda={tanda} nuevaTanda={nuevaTanda} />
+            <Resultados tanda={tanda} nuevaTanda={nuevaTanda} razas={razas} />
           )}
         </div>
       </main>
@@ -124,7 +126,7 @@ export default function Pagina() {
   );
 }
 
-function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso, fallo, input, repetidos, resolverRepetidos }) {
+function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso, fallo, input, repetidos, resolverRepetidos, razas, resultados }) {
   const [buscar, setBuscar] = useState('');
   const ocupado = progreso !== null;
   const q = buscar.trim().toLowerCase();
@@ -154,6 +156,8 @@ function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso,
           </div>
         </aside>
       </div>
+
+      <RazasFuera razas={razas} resultados={resultados} abierto />
 
       {repetidos.length > 0 && (
         <div className="aviso" role="alert">
@@ -325,63 +329,83 @@ function AvisosLectura({ resultados }) {
 
 const CLAVE_RAZAS = 'hemopuppy.razas';
 
-/** Lista de razas con check "tomar en cuenta". Se recuerda en este navegador (localStorage) para no rearmarla en cada tanda. */
+/**
+ * Razas fuera del análisis. Las `fijas` (RAZAS_INICIALES) recuerdan su check en este navegador (localStorage);
+ * las `temporales` valen solo para la tanda en curso y no se guardan.
+ */
 function useRazas() {
-  const [razas, setRazas] = useState(RAZAS_INICIALES);
+  const [fijas, setFijas] = useState(RAZAS_INICIALES);
+  const [temporales, setTemporales] = useState([]);
   useEffect(() => {
     try {
       const guardadas = JSON.parse(localStorage.getItem(CLAVE_RAZAS));
-      if (Array.isArray(guardadas) && guardadas.every((r) => typeof r?.nombre === 'string')) setRazas(guardadas);
+      if (Array.isArray(guardadas)) setFijas(RAZAS_INICIALES.map((r) => ({ ...r, tomar: guardadas.find((g) => g.nombre === r.nombre)?.tomar ?? r.tomar })));
     } catch {}
   }, []);
-  const cambiar = (f) =>
-    setRazas((prev) => {
-      const nuevas = f(prev);
+  const setFija = (nombre, tomar) =>
+    setFijas((prev) => {
+      const nuevas = prev.map((r) => (r.nombre === nombre ? { ...r, tomar } : r));
       try {
         localStorage.setItem(CLAVE_RAZAS, JSON.stringify(nuevas));
       } catch {}
       return nuevas;
     });
-  return [razas, cambiar];
+  const agregarTemporal = (nombre) => {
+    const n = nombre.trim();
+    if (n && ![...fijas, ...temporales].some((r) => clave(r.nombre) === clave(n))) setTemporales((prev) => [...prev, { nombre: n, tomar: false }]);
+  };
+  return {
+    fijas,
+    temporales,
+    todas: [...fijas, ...temporales],
+    setFija,
+    setTemporal: (nombre, tomar) => setTemporales((prev) => prev.map((r) => (r.nombre === nombre ? { ...r, tomar } : r))),
+    agregarTemporal,
+    quitarTemporal: (nombre) => setTemporales((prev) => prev.filter((r) => r.nombre !== nombre)),
+    reiniciarTemporales: () => setTemporales([]),
+  };
 }
 
-function RazasFuera({ razas, cambiar, resultados, excluidos }) {
+function RazasFuera({ razas, resultados, abierto }) {
   const [nueva, setNueva] = useState('');
-  const coinc = useMemo(() => coincidencias(resultados, razas), [resultados, razas]);
+  const coinc = useMemo(() => coincidencias(resultados, razas.todas), [resultados, razas.todas]);
+  const { totalExcluidos } = useMemo(() => excluirPorRaza(resultados, razas.todas), [resultados, razas.todas]);
   const detectadas = useMemo(() => [...new Set(resultados.map((r) => r.raza).filter(Boolean))].sort(), [resultados]);
-  const total = Object.values(excluidos).reduce((a, b) => a + b, 0);
-  const iniciales = new Set(RAZAS_INICIALES.map((r) => r.nombre));
+  const filas = [...razas.fijas.map((r) => ({ ...r, temporal: false })), ...razas.temporales.map((r) => ({ ...r, temporal: true }))];
   const agregar = () => {
-    const nombre = nueva.trim();
-    if (nombre && !razas.some((r) => clave(r.nombre) === clave(nombre))) cambiar((prev) => [...prev, { nombre, tomar: false }]);
+    razas.agregarTemporal(nueva);
     setNueva('');
   };
   return (
-    <details className="card razas-card no-print">
+    <details className="card razas-card no-print" open={abierto}>
       <summary>
-        Razas fuera del análisis <small>{total > 0 ? `· ${total} paciente(s) sin contar` : '· ninguna en esta tanda'}</small>
+        Razas fuera del análisis <small>{resultados.length ? (totalExcluidos > 0 ? `· ${totalExcluidos} paciente(s) sin contar` : '· ninguna en esta tanda') : '· se aplican solas al analizar'}</small>
       </summary>
-      <p className="cap">Hay razas que casi siempre salen alteradas por su anatomía. Con el check desmarcado, sus pacientes no se cuentan en ninguna cifra, gráfico ni exportación. Marca la raza para tomarla en cuenta.</p>
+      <p className="cap">
+        Hay razas que casi siempre salen alteradas por su anatomía. Con el check desmarcado, sus pacientes no se cuentan en ninguna cifra, gráfico ni exportación; marca la raza para tomarla en cuenta. El filtro se aplica solo al analizar, sin que tengas que saber qué raza trae cada PDF.
+      </p>
       <ul className="razas-lista">
-        {coinc.map((c) => (
-          <li key={c.nombre}>
-            <label>
-              <input type="checkbox" checked={razas.find((r) => r.nombre === c.nombre).tomar} onChange={(e) => cambiar((prev) => prev.map((r) => (r.nombre === c.nombre ? { ...r, tomar: e.target.checked } : r)))} />
-              <strong>{c.nombre}</strong>
-            </label>
-            <small>
-              {c.n ? `${c.n} paciente(s) en esta tanda (en el PDF: ${Object.entries(c.vistas).map(([v, n]) => `${v} ×${n}`).join(', ')})` : 'ninguno en esta tanda'}
-            </small>
-            {!iniciales.has(c.nombre) && (
-              <button className="remove" aria-label={`Quitar ${c.nombre} de la lista`} onClick={() => cambiar((prev) => prev.filter((r) => r.nombre !== c.nombre))}>
-                ×
-              </button>
-            )}
-          </li>
-        ))}
+        {filas.map((r) => {
+          const c = coinc.find((x) => x.nombre === r.nombre);
+          return (
+            <li key={r.nombre}>
+              <label>
+                <input type="checkbox" checked={r.tomar} onChange={(e) => (r.temporal ? razas.setTemporal(r.nombre, e.target.checked) : razas.setFija(r.nombre, e.target.checked))} />
+                <strong>{r.nombre}</strong>
+                {r.temporal && <em className="temporal">temporal</em>}
+              </label>
+              <small>{!resultados.length ? 'se verá cuántos pacientes coinciden al analizar' : c.n ? `${c.n} paciente(s) en esta tanda (en el PDF: ${Object.entries(c.vistas).map(([v, n]) => `${v} ×${n}`).join(', ')})` : 'ninguno en esta tanda'}</small>
+              {r.temporal && (
+                <button className="remove" aria-label={`Quitar ${r.nombre} de la lista`} onClick={() => razas.quitarTemporal(r.nombre)}>
+                  ×
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
       <div className="razas-nueva">
-        <input list="razas-detectadas" value={nueva} onChange={(e) => setNueva(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && agregar()} placeholder="Agregar otra raza (escríbela como sale en el PDF)" aria-label="Agregar otra raza a la lista" />
+        <input list="razas-detectadas" value={nueva} onChange={(e) => setNueva(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && agregar()} placeholder="Agregar una raza temporal (como sale en el PDF)" aria-label="Agregar una raza temporal a la lista" />
         <datalist id="razas-detectadas">
           {detectadas.map((r) => (
             <option key={r} value={r} />
@@ -391,7 +415,7 @@ function RazasFuera({ razas, cambiar, resultados, excluidos }) {
           Agregar
         </button>
       </div>
-      <p className="cap">Al escribir, se sugieren las razas que aparecen en esta tanda. La coincidencia ignora mayúsculas, tildes y espacios, y tolera pequeños errores de escritura.</p>
+      <p className="cap">Las razas que agregues valen para esta tanda y no se guardan. La coincidencia ignora mayúsculas, tildes y espacios, y tolera pequeños errores de escritura.</p>
     </details>
   );
 }
@@ -403,7 +427,7 @@ function detalleTanda(enTanda, gen, excluidos) {
   return partes.join(' · ');
 }
 
-function Resultados({ tanda, nuevaTanda }) {
+function Resultados({ tanda, nuevaTanda, razas }) {
   const [f, setF] = useState({});
   const [panel, setPanel] = useState('hemograma');
   const [foco, setFoco] = useState({ analito: null, estado: 'alterado', severidad: '', plaquetasNoFiables: false });
@@ -411,13 +435,12 @@ function Resultados({ tanda, nuevaTanda }) {
   const [verTodos, setVerTodos] = useState(false);
   const [orden, setOrden] = useState({ col: null, dir: 'desc' });
   const refPac = useRef(null);
-  const [razas, cambiarRazas] = useRazas();
   const set = (k) => (e) => {
     const v = e.target.value;
     setF((p) => ({ ...p, [k]: v === '' ? undefined : k.startsWith('edad') ? Number(v) : v }));
   };
 
-  const { incluidos, excluidos, totalExcluidos } = useMemo(() => excluirPorRaza(tanda.resultados, razas), [tanda, razas]);
+  const { incluidos, totalExcluidos } = useMemo(() => excluirPorRaza(tanda.resultados, razas.todas), [tanda, razas.todas]);
   const op = useMemo(() => opciones(incluidos), [incluidos]);
   const rs = useMemo(() => filtrarDemografia(incluidos, f), [incluidos, f]);
   const gen = useMemo(() => resumen(rs, 'general'), [rs]);
@@ -472,7 +495,7 @@ function Resultados({ tanda, nuevaTanda }) {
       <AvisosLectura resultados={tanda.resultados} />
       {exp === 'error' && <div className="aviso error no-print" role="alert">No se pudo generar el Excel. Inténtalo de nuevo.</div>}
       {rangoMal && <div className="aviso no-print" role="alert">La edad mínima es mayor que la máxima, por eso no hay pacientes. Corrige el rango o límpialo.</div>}
-      <RazasFuera razas={razas} cambiar={cambiarRazas} resultados={tanda.resultados} excluidos={excluidos} />
+      <RazasFuera razas={razas} resultados={tanda.resultados} />
 
       <div className="toolbar no-print">
         <div className="filters">
