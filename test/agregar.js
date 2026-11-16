@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { PANELES } from '../src/reglas.js';
-import { alteracionesPorEdad, filtrarDemografia, opciones, pacientes, resumen, unificarEspecie } from '../src/agregar.js';
+import { alteracionesPorEdad, filtrarDemografia, opciones, pacientes, resumen, unificarEspecie, unificarTextos } from '../src/agregar.js';
 
 const base = (p) => Object.fromEntries(Object.keys(PANELES[p].analitos).map((k) => [k, { estado: 'normal', severidad: null, g3: false }]));
 const caso = (id, sexo, edadAnios, cambios = {}, bio = {}) => ({
@@ -56,5 +56,20 @@ assert.equal(rg.plaquetas.noFiables, 1);
 const porEdad = alteracionesPorEdad([...rs, caso('Archivo 6', 'Macho', 0.5), { ...caso('Archivo 7', 'Hembra', 12, { vcm: { estado: 'alto', severidad: null, g3: false } }), edadAnios: 12 }, { ...caso('Archivo 8', 'Hembra', null), edadAnios: null }]);
 assert.deepEqual(porEdad.map((t) => [t.nombre, t.total, t.alterados]), [['Menos de 1', 1, 0], ['1 a 3', 1, 1], ['4 a 6', 2, 2], ['7 a 9', 1, 1], ['10 o más', 1, 1], ['Sin edad', 1, 0]]);
 assert.equal(porEdad.find((t) => t.nombre === '4 a 6').pct, 100);
+
+const sinHemo = { ...caso('Archivo 9', 'Hembra', 3, {}, { creatinina: { estado: 'alto', severidad: null, g3: false } }), cuenta: { hemograma: false, bioquimico: true } };
+const con = [{ ...rs[0], cuenta: { hemograma: true, bioquimico: true } }, sinHemo];
+const g = resumen(con, 'general');
+assert.equal(g.total, 2);
+assert.deepEqual(g.porPanel, { hemograma: 1, bioquimico: 2 });
+assert.deepEqual(g.origen, { hemograma: { n: 1, de: 1 }, bioquimico: { n: 1, de: 2 }, ambos: { n: 0, de: 1 } });
+assert.equal(resumen(con, 'hemograma').total, 1);
+assert.equal(resumen(con, 'bioquimico').total, 2);
+assert.equal(resumen(con, 'bioquimico').conAlterados, 1);
+assert.equal(g.plaquetas.pctNoFiables, 100);
+
+const textos = unificarTextos([{ raza: 'Pastor Americano', sexo: 'Hembra' }, { raza: 'P astor Amer ic ano', sexo: 'Hembr a' }, { raza: null, sexo: 'Macho' }]);
+assert.deepEqual(textos.map((t) => t.raza), ['Pastor Americano', 'Pastor Americano', null]);
+assert.deepEqual(textos.map((t) => t.sexo), ['Hembra', 'Hembra', 'Macho']);
 
 console.log('OK agregar');

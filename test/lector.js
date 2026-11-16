@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { leerPanel } from '../src/parse.js';
+import { cabeceraBioquimico, edadAnios, leerPanel } from '../src/parse.js';
 import { PANELES, REFERENCIAS } from '../src/reglas.js';
 
 const item = (str, x, y) => ({ str, transform: [1, 0, 0, 1, x, y] });
@@ -32,9 +32,37 @@ assert.equal(sinCreatinina.albumina.estado, 'normal');
 assert.throws(() => leer('bioquimico', {}, ['creatinina', 'albumina', 'glucosa', 'ast', 'alt', 'ggt']), /layout inesperado en Bioquímico/);
 assert.throws(() => leer('hemograma', {}, ['hematocrito']), /layout inesperado en Hemograma: faltan filas hematocrito/);
 
-assert.equal(leer('hemograma', { reticulocitos_pct: '.' }).reticulocitos_pct.estado, 'no_medido');
-assert.throws(() => leer('hemograma', { hematocrito: 'Mx coagulada' }), /muestra coagulada/);
-assert.throws(() => leer('hemograma', { hematocrito: 'a' }), /valor ilegible en hematocrito: "a"/);
-assert.equal(leer('bioquimico', { glucosa: '>500' }).glucosa.estado, 'no_medido');
+const estado = () => ({ notas: [], problema: null });
+const conEstado = (clave, valores) => {
+  const e = estado();
+  return { out: leerPanel(clave, hoja(clave, valores), 'canino', () => true, e), e };
+};
+
+const punto = conEstado('hemograma', { reticulocitos_pct: '.' });
+assert.equal(punto.out.reticulocitos_pct.estado, 'no_medido');
+assert.deepEqual(punto.e, { notas: [], problema: null });
+
+for (const texto of ['Mx coagulada', 'a']) {
+  const { out, e } = conEstado('hemograma', { hematocrito: texto });
+  assert.equal(e.problema, `Hematocrito «${texto}»`);
+  assert.ok(Object.values(out).every((a) => a.estado === 'no_medido'), 'un panel con problemas queda sin datos');
+}
+
+const alto = conEstado('bioquimico', { glucosa: '>500' });
+assert.equal(alto.out.glucosa.estado, 'no_medido');
+assert.equal(alto.out.albumina.estado, 'normal');
+assert.deepEqual(alto.e, { notas: ['Glucosa «>500» se tomó como sin dato'], problema: null });
+
+const x = (str, xPos, y) => item(str, xPos, y);
+const cab = cabeceraBioquimico([x('NOMBRE:', 62, 800), x('RAZA', 62, 788), x('BORDER COLLIE', 90, 788), x('ESPECIE:CANINO', 62, 776), x('EDAD:NO INFORMADO', 62, 764), x('SEXO:HEMBRA', 62, 752)]);
+assert.deepEqual(cab, { RAZA: 'BORDER COLLIE', EDAD: 'NO INFORMADO', SEXO: 'HEMBRA' });
+
+assert.equal(edadAnios('6 años'), 6);
+assert.equal(edadAnios('2a 1m'), 2 + 1 / 12);
+assert.equal(edadAnios('1 a 4 m'), 1 + 4 / 12);
+assert.equal(edadAnios('8 meses'), 8 / 12);
+assert.equal(edadAnios('12 semanas'), 12 / 52);
+assert.equal(edadAnios('NO INFORMADO'), null);
+assert.equal(edadAnios(undefined), null);
 
 console.log('OK lector');

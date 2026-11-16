@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useRef, useState } from 'react';
-import { alteracionesPorEdad, filtrarDemografia, opciones, pacientes, resumen, unificarEspecie } from '../src/agregar.js';
+import { alteracionesPorEdad, filtrarDemografia, opciones, pacientes, resumen, unificarEspecie, unificarTextos } from '../src/agregar.js';
 import { exportarExcel } from '../src/exportar.js';
 import { PANELES } from '../src/reglas.js';
 import { NOMBRES } from '../src/etiquetas.js';
@@ -68,7 +68,7 @@ export default function Pagina() {
     setProgreso(0);
     try {
       const { resultados, errores } = await analizarArchivos(files, setProgreso);
-      const u = unificarEspecie(resultados);
+      const u = unificarEspecie(unificarTextos(resultados));
       setTanda({ ...u, errores: [...errores, ...u.rechazados], enviados: files.length });
       setVista('resultados');
     } catch (e) {
@@ -307,6 +307,21 @@ function AlteracionesPorEdad({ rs }) {
   );
 }
 
+function AvisosLectura({ resultados }) {
+  const conAviso = resultados.filter((r) => r.advertencias?.length);
+  if (!conAviso.length) return null;
+  return (
+    <div className="aviso no-print" role="status">
+      <p>{conAviso.length} archivo(s) con avisos de lectura. Un examen sin datos o con problemas no se cuenta para ese paciente:</p>
+      <ul>
+        {conAviso.slice(0, 30).map((r) => (
+          <li key={r.id}>{r.id}: {r.advertencias.join('; ')}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Resultados({ tanda, nuevaTanda }) {
   const [f, setF] = useState({});
   const [panel, setPanel] = useState('hemograma');
@@ -371,11 +386,7 @@ function Resultados({ tanda, nuevaTanda }) {
         </div>
       )}
 
-      {tanda.resultados.some((r) => r.sinBioquimico) && (
-        <div className="aviso no-print" role="status">
-          {tanda.resultados.filter((r) => r.sinBioquimico).length} archivo(s) no traían perfil bioquímico: cuentan en el hemograma y quedan sin dato en el bioquímico.
-        </div>
-      )}
+      <AvisosLectura resultados={tanda.resultados} />
       {exp === 'error' && <div className="aviso error no-print" role="alert">No se pudo generar el Excel. Inténtalo de nuevo.</div>}
       {rangoMal && <div className="aviso no-print" role="alert">La edad mínima es mayor que la máxima, por eso no hay pacientes. Corrige el rango o límpialo.</div>}
       <div className="toolbar no-print">
@@ -390,7 +401,7 @@ function Resultados({ tanda, nuevaTanda }) {
             <input id="f-hasta" type="number" min="0" max={op.edadMax} placeholder="Máx." value={f.edadMax ?? ''} onChange={set('edadMax')} /></div>
           <button className="btn" onClick={() => setF({})}><Refrescar /> Limpiar filtros</button>
         </div>
-        {res.total !== tanda.resultados.length && <p className="resumen-filtro" role="status">Mostrando {res.total} de {tanda.resultados.length} pacientes con los filtros actuales</p>}
+        {gen.total !== tanda.resultados.length && <p className="resumen-filtro" role="status">Mostrando {gen.total} de {tanda.resultados.length} pacientes con los filtros actuales</p>}
         <div className="export-actions">
           <button className="btn" disabled={exp === 'gen'} onClick={async () => {
             setExp('gen');
@@ -400,7 +411,7 @@ function Resultados({ tanda, nuevaTanda }) {
         </div>
       </div>
 
-      {res.total === 0 && (
+      {gen.total === 0 && (
         <div className="card vacio-total">
           <img src={`${BASE}/brand/perro-negro-sentado.webp`} alt="" />
           <h3>Ningún paciente con estos filtros</h3>
@@ -408,9 +419,9 @@ function Resultados({ tanda, nuevaTanda }) {
           <button className="btn primary" onClick={() => setF({})}><Refrescar /> Limpiar filtros</button>
         </div>
       )}
-      <div hidden={res.total === 0}>
+      <div hidden={gen.total === 0}>
       <div className="kpis">
-        <Tarjeta icono={<Usuarios />} t={`Pacientes analizados · ${tanda.especie}`} n={gen.total} p={`${tanda.resultados.length} en la tanda`} />
+        <Tarjeta icono={<Usuarios />} t={`Pacientes analizados · ${tanda.especie}`} n={gen.total} p={gen.porPanel.hemograma === gen.total && gen.porPanel.bioquimico === gen.total ? `${tanda.resultados.length} en la tanda` : `${tanda.resultados.length} en la tanda · hemograma ${gen.porPanel.hemograma} · bioquímico ${gen.porPanel.bioquimico}`} />
         <Tarjeta icono={<Alerta />} t="Con alguna alteración" n={gen.conAlterados} pct={gen.pctAlterados} p={`${pc(gen.pctAlterados)} de los pacientes`} />
         <Tarjeta icono={<Barras />} t="Con alteración moderada" n={gen.conModerada} pct={gen.pctModerada} p={`${pc(gen.pctModerada)} de los pacientes`} />
         <Tarjeta icono={<Informe />} t="Plaquetas no fiables (agregados)" n={gen.plaquetas.noFiables} pct={gen.plaquetas.pctNoFiables} p={`${pc(gen.plaquetas.pctNoFiables)} de los pacientes`} />
@@ -425,9 +436,9 @@ function Resultados({ tanda, nuevaTanda }) {
             <div className="legend">
               <div className="legend-row"><span className="dot" style={{ background: '#ee5d5d' }} /><div>Con alteraciones<br /><b>{pc(gen.pctAlterados)} ({gen.conAlterados})</b>
                 <span className="desglose">
-                  <span>En hemograma: <b>{pc(pctDe(gen.origen.hemograma, gen.total))} ({gen.origen.hemograma})</b></span>
-                  <span>En perfil bioquímico: <b>{pc(pctDe(gen.origen.bioquimico, gen.total))} ({gen.origen.bioquimico})</b></span>
-                  <span>En ambos: <b>{pc(pctDe(gen.origen.ambos, gen.total))} ({gen.origen.ambos})</b></span>
+                  <span>En hemograma: <b>{pc(pctDe(gen.origen.hemograma.n, gen.origen.hemograma.de))} ({gen.origen.hemograma.n} de {gen.origen.hemograma.de})</b></span>
+                  <span>En perfil bioquímico: <b>{pc(pctDe(gen.origen.bioquimico.n, gen.origen.bioquimico.de))} ({gen.origen.bioquimico.n} de {gen.origen.bioquimico.de})</b></span>
+                  <span>En ambos: <b>{pc(pctDe(gen.origen.ambos.n, gen.origen.ambos.de))} ({gen.origen.ambos.n} de {gen.origen.ambos.de})</b></span>
                 </span></div></div>
               <div className="legend-row"><span className="dot" style={{ background: '#73b8aa' }} /><div>Sin alteraciones<br /><b>{pc(100 - gen.pctAlterados)} ({gen.sinAlterados})</b></div></div>
             </div>

@@ -63,7 +63,7 @@ const dec = (etiqueta) => ({ etiqueta, ref: 'dec', valor: 'dec' });
 export const PANELES = {
   hemograma: {
     nombre: 'Hemograma',
-    pagina: /HEMOGRAMA\s+(\w+)/i,
+    pagina: /HEMOGRAMA/i,
     col: { etiqueta: [80, 225], valor: [225, 300], pct: [300, 360], unidad: [360, 430], ref: [430, 620] },
     analitos: {
       eritrocitos: { etiqueta: 'ERITROCITOS', ref: 'miles', refDiv: 1e6, valor: 'dec' },
@@ -86,7 +86,7 @@ export const PANELES = {
   },
   bioquimico: {
     nombre: 'Bioquímico',
-    pagina: /PERFIL\s+BIOQU[IÍ]MICO/i,
+    pagina: /PERFILBIOQU[IÍ]MICO/i,
     col: { etiqueta: [60, 205], unidad: [205, 300], valor: [300, 420], ref: [420, 620] },
     tolerante: true,
     analitos: {

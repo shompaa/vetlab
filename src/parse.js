@@ -1,5 +1,6 @@
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { PANELES, REFERENCIAS } from './reglas.js';
+import { NOMBRES } from './etiquetas.js';
 import { clasificar } from './clasificar.js';
 
 if (typeof window !== 'undefined') GlobalWorkerOptions.workerSrc = `${process.env.BASE ?? ''}/pdf.worker.min.mjs`;
@@ -25,28 +26,43 @@ function filas(items) {
 
 const col = (fila, [a, b]) => fila.filter((i) => i.x >= a && i.x < b).map((i) => i.s).join('');
 
+/** Edad en años desde "6 años", "8 meses", "2a 1m" o "1 a 4 m". */
 export function edadAnios(txt) {
-  const m = /(\d+(?:[.,]\d+)?)\s*(año|mes|semana|dia)/i.exec(txt ?? '');
-  if (!m) return null;
-  const n = parseFloat(m[1].replace(',', '.'));
-  return { año: n, mes: n / 12, semana: n / 52, dia: n / 365 }[m[2].toLowerCase()];
+  const t = txt ?? '';
+  const parte = (re, dividir) => {
+    const m = re.exec(t);
+    return m ? parseFloat(m[1].replace(',', '.')) / dividir : 0;
+  };
+  const total =
+    parte(/(\d+(?:[.,]\d+)?)\s*a(?:ños?)?(?![a-zñ])/i, 1) +
+    parte(/(\d+(?:[.,]\d+)?)\s*m(?:es(?:es)?)?(?![a-zñ])/i, 12) +
+    parte(/(\d+(?:[.,]\d+)?)\s*semanas?/i, 52) +
+    parte(/(\d+(?:[.,]\d+)?)\s*d[ií]as?/i, 365);
+  return total > 0 ? total : null;
 }
 
+const sinEspacios = (s) => s.replace(/\s+/g, '');
+
+/** Ubica la hoja de cada panel por su título. Algunos PDF dejan espacios sueltos dentro de las palabras ("HEMO GRAMA"), así que se busca sin espacios. */
 async function hojas(doc) {
   const hallado = {};
   const claves = Object.keys(PANELES);
   for (let p = 1; p <= doc.numPages && Object.keys(hallado).length < claves.length; p++) {
     const { items } = await (await doc.getPage(p)).getTextContent();
     const txt = items.map((i) => i.str).join(' ');
+    const plano = sinEspacios(txt);
     for (const k of claves) {
-      const m = !hallado[k] && PANELES[k].pagina.exec(txt);
-      if (m) hallado[k] = { items, txt, m };
+      if (!hallado[k] && PANELES[k].pagina.test(plano)) hallado[k] = { items, txt, plano };
     }
   }
   return hallado;
 }
 
-export function leerPanel(clave, items, especie, confiable) {
+/**
+ * Lee un panel. `estado` recoge lo que no se pudo leer: `notas` (valores tomados como sin dato) y
+ * `problema` (un valor que no es número ni un "<"/">": la muestra no sirve y el panel no se cuenta).
+ */
+export function leerPanel(clave, items, especie, confiable, estado = { notas: [], problema: null }) {
   const panel = PANELES[clave];
   const rows = filas(items);
   const claves = Object.entries(panel.analitos).map(([k, v]) => [k, compacta(v.etiqueta)]).sort((x, y) => y[1].length - x[1].length);
@@ -63,10 +79,11 @@ export function leerPanel(clave, items, especie, confiable) {
   const faltan = Object.keys(panel.analitos).filter((k) => !crudos[k]);
   const toleradas = panel.tolerante ? Math.floor(Object.keys(panel.analitos).length / 3) : 0;
   if (faltan.length > toleradas) throw new Error(`layout inesperado en ${panel.nombre}: faltan filas ${faltan.join(', ')} (etiquetas leídas: ${leidas.slice(0, 25).join(' | ')})`);
-  return armar(clave, crudos, especie, confiable);
+  const out = armar(clave, crudos, especie, confiable, estado);
+  return estado.problema ? armar(clave, {}, especie, confiable) : out;
 }
 
-function armar(clave, crudos, especie, confiable) {
+function armar(clave, crudos, especie, confiable, estado = { notas: [], problema: null }) {
   const panel = PANELES[clave];
   const out = {};
   for (const [k, def] of Object.entries(panel.analitos)) {
@@ -75,8 +92,8 @@ function armar(clave, crudos, especie, confiable) {
     const [refMin, refMax] = REFERENCIAS[especie][k];
     let valor = v ? num(v, def.valor) : null;
     if (valor !== null && Number.isNaN(valor)) {
-      if (/coagul/i.test(v)) throw new Error('muestra coagulada: el hemograma no es confiable');
-      if (!panel.tolerante && refMin != null) throw new Error(`valor ilegible en ${k}: "${v}"`);
+      if (refMin != null && /^\s*[<>≤≥]/.test(v)) estado.notas.push(`${NOMBRES[k]} «${v.trim()}» se tomó como sin dato`);
+      else if (refMin != null) estado.problema ??= `${NOMBRES[k]} «${v.trim()}»`;
       valor = null;
     }
     const pct = f && panel.col.pct ? col(f, panel.col.pct) : '';
@@ -92,32 +109,80 @@ function armar(clave, crudos, especie, confiable) {
   return out;
 }
 
+const dato = (s) => (s && !/^no informad/i.test(s) ? s : null);
+const titulo = (s) => (s === s.toUpperCase() ? s.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : s);
+const SEXOS = { HEMBRA: 'Hembra', MACHO: 'Macho' };
+
+function cabeceraHemograma(items) {
+  const cab = {};
+  for (const f of filas(items)) {
+    const e = f[0]?.s.trim();
+    if (f[0].x < 100 && e?.endsWith(':')) cab[norm(e.slice(0, -1))] = col(f, [130, 350]).trim();
+  }
+  return cab;
+}
+
+/** Sin la hoja del hemograma, raza, sexo y edad se toman del encabezado de la hoja bioquímica ("RAZA BORDER COLLIE", "SEXO:HEMBRA"). */
+export function cabeceraBioquimico(items) {
+  const cab = {};
+  for (const f of filas(items)) {
+    const m = /^(RAZA|SEXO|EDAD)\s*:?\s*(.+)$/i.exec(col(f, PANELES.bioquimico.col.etiqueta).trim());
+    if (m) cab[m[1].toUpperCase()] = m[2].trim();
+  }
+  return cab;
+}
+
 export async function parsearHemograma(buffer) {
   const task = getDocument({ data: new Uint8Array(buffer), verbosity: 0 });
   try {
     const doc = await task.promise;
     const h = await hojas(doc);
-    if (!h.hemograma) throw new Error('layout inesperado: falta el titulo HEMOGRAMA');
-    const especie = ESPECIES[norm(h.hemograma.m[1])];
-    if (!especie || !REFERENCIAS[especie]) throw new Error(`HemoPuppy solo analiza perros: este informe es de ${h.hemograma.m[1]}`);
-
-    const cab = {};
-    for (const f of filas(h.hemograma.items)) {
-      const e = f[0]?.s.trim();
-      if (f[0].x < 100 && e?.endsWith(':')) cab[norm(e.slice(0, -1))] = col(f, [130, 350]).trim();
+    if (!h.hemograma && !h.bioquimico) throw new Error('layout inesperado: no hay hoja HEMOGRAMA ni PERFIL BIOQUIMICO');
+    const plano = (h.hemograma ?? h.bioquimico).plano.toUpperCase();
+    const nombreEspecie = /(CANINO|FELINO)/.exec(plano)?.[1];
+    const especie = ESPECIES[nombreEspecie];
+    if (!especie || !REFERENCIAS[especie]) {
+      throw new Error(nombreEspecie ? `HemoPuppy solo analiza perros: este informe es de ${nombreEspecie}` : 'no se pudo determinar la especie del informe (se esperaba canino)');
     }
 
-    const agregados = /agregados\s+plaquetarios/i.test(h.hemograma.txt);
+    const cab = h.hemograma ? cabeceraHemograma(h.hemograma.items) : cabeceraBioquimico(h.bioquimico.items);
+    const agregados = h.hemograma ? /AGREGADOSPLAQUETARIOS/.test(h.hemograma.plano.toUpperCase()) : false;
+    const advertencias = [];
+    const cuenta = {};
+    const paneles = {};
+    for (const clave of Object.keys(PANELES)) {
+      const hoja = h[clave];
+      const nombre = PANELES[clave].nombre;
+      cuenta[clave] = false;
+      paneles[clave] = armar(clave, {}, especie, () => true);
+      if (!hoja) {
+        advertencias.push(`Sin hoja de ${nombre}: no se cuenta en ese examen`);
+        continue;
+      }
+      const estado = { notas: [], problema: null };
+      const confiable = clave === 'hemograma' ? (k) => !(k === 'plaquetas' && agregados) : () => true;
+      const datos = leerPanel(clave, hoja.items, especie, confiable, estado);
+      advertencias.push(...estado.notas);
+      if (estado.problema) advertencias.push(`${nombre} con problemas, no se cuenta: ${estado.problema}`);
+      else {
+        paneles[clave] = datos;
+        cuenta[clave] = true;
+      }
+    }
+    if (!cuenta.hemograma && !cuenta.bioquimico) throw new Error(advertencias.join('; '));
+
+    const raza = dato(cab.RAZA);
+    const sexo = dato(cab.SEXO);
     return {
       especie,
-      raza: cab.RAZA || null,
-      sexo: cab.SEXO || null,
-      edad: cab.EDAD || null,
-      edadAnios: edadAnios(cab.EDAD),
+      raza: raza && titulo(raza),
+      sexo: sexo && (SEXOS[norm(sinEspacios(sexo))] ?? titulo(sexo)),
+      edad: dato(cab.EDAD),
+      edadAnios: edadAnios(dato(cab.EDAD)),
       agregadosPlaquetarios: agregados,
-      hemograma: leerPanel('hemograma', h.hemograma.items, especie, (k) => !(k === 'plaquetas' && agregados)),
-      sinBioquimico: !h.bioquimico,
-      bioquimico: h.bioquimico ? leerPanel('bioquimico', h.bioquimico.items, especie, () => true) : armar('bioquimico', {}, especie, () => true),
+      cuenta,
+      advertencias,
+      ...paneles,
     };
   } finally {
     await task.destroy();

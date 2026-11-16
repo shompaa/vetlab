@@ -3,6 +3,7 @@ import { PANELES } from './reglas.js';
 const claves = (panel) => (panel === 'general' ? Object.keys({ ...PANELES.hemograma.analitos, ...PANELES.bioquimico.analitos }) : Object.keys(PANELES[panel].analitos));
 const datos = (r, panel) => (panel === 'general' ? { ...r.hemograma, ...r.bioquimico } : r[panel]);
 const alterado = (a) => a.estado === 'alto' || a.estado === 'bajo';
+const cuenta = (r, panel) => panel === 'general' || r.cuenta?.[panel] !== false;
 const pct = (n, d) => (d ? Math.round((n / d) * 1000) / 10 : 0);
 
 export function opciones(rs) {
@@ -33,7 +34,8 @@ export function pacientes(rs, { analito, estado, severidad, plaquetasNoFiables }
   });
 }
 
-export function resumen(rs, panel = 'hemograma') {
+export function resumen(todos, panel = 'hemograma') {
+  const rs = todos.filter((r) => cuenta(r, panel));
   const total = rs.length;
   const conAlterados = pacientes(rs, {}, panel).length;
   const conModerada = rs.filter((r) => Object.values(datos(r, panel)).some((a) => a.severidad === 'moderada')).length;
@@ -69,14 +71,11 @@ export function resumen(rs, panel = 'hemograma') {
     pctAlterados: pct(conAlterados, total),
     conModerada,
     pctModerada: pct(conModerada, total),
-    origen: {
-      hemograma: rs.filter((r) => Object.values(r.hemograma).some(alterado)).length,
-      bioquimico: rs.filter((r) => Object.values(r.bioquimico).some(alterado)).length,
-      ambos: rs.filter((r) => Object.values(r.hemograma).some(alterado) && Object.values(r.bioquimico).some(alterado)).length,
-    },
+    porPanel: { hemograma: todos.filter((r) => cuenta(r, 'hemograma')).length, bioquimico: todos.filter((r) => cuenta(r, 'bioquimico')).length },
+    origen: origen(todos),
     plaquetas: porAnalito.plaquetas && {
       noFiables,
-      pctNoFiables: pct(noFiables, total),
+      pctNoFiables: pct(noFiables, panel === 'general' ? todos.filter((r) => cuenta(r, 'hemograma')).length : total),
       medidasFiables: porAnalito.plaquetas.medidos,
       bajas: porAnalito.plaquetas.bajo,
       altas: porAnalito.plaquetas.alto,
@@ -84,6 +83,38 @@ export function resumen(rs, panel = 'hemograma') {
     porAnalito,
     alteradosPorPaciente: Object.entries(dist).map(([n, pacientes]) => ({ n: Number(n), pacientes })),
   };
+}
+
+/** Pacientes con alteración en cada examen, sobre los pacientes que traen ese examen (`de`). */
+function origen(todos) {
+  const hemo = todos.filter((r) => cuenta(r, 'hemograma'));
+  const bio = todos.filter((r) => cuenta(r, 'bioquimico'));
+  const ambos = hemo.filter((r) => cuenta(r, 'bioquimico'));
+  const con = (rs, f) => rs.filter((r) => Object.values(f(r)).some(alterado)).length;
+  return {
+    hemograma: { n: con(hemo, (r) => r.hemograma), de: hemo.length },
+    bioquimico: { n: con(bio, (r) => r.bioquimico), de: bio.length },
+    ambos: { n: ambos.filter((r) => con([r], (x) => x.hemograma) && con([r], (x) => x.bioquimico)).length, de: ambos.length },
+  };
+}
+
+/** Une variantes de un mismo texto que solo difieren en espacios sueltos ("P astor Amer ic ano"): se muestra la que tiene menos espacios. */
+export function unificarTextos(rs) {
+  const clave = (s) => s.replace(/\s+/g, '').toLowerCase();
+  const mejor = (campo) => {
+    const m = new Map();
+    for (const r of rs) {
+      const v = r[campo];
+      if (!v) continue;
+      const k = clave(v);
+      const actual = m.get(k);
+      if (!actual || v.split(' ').length < actual.split(' ').length) m.set(k, v);
+    }
+    return m;
+  };
+  const razas = mejor('raza');
+  const sexos = mejor('sexo');
+  return rs.map((r) => ({ ...r, raza: r.raza ? razas.get(clave(r.raza)) : r.raza, sexo: r.sexo ? sexos.get(clave(r.sexo)) : r.sexo }));
 }
 
 export function unificarEspecie(rs) {
