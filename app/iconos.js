@@ -88,3 +88,42 @@ export const Capas = ({ size = 22 }) => (
     <path d="m3 12 9 4.500 9-4.500M3 16.500l9 4.500 9-4.500" />
   </svg>
 );
+
+export const Carpeta = ({ size = 20 }) => (
+  <svg {...base} width={size} height={size}>
+    <path d="M3 7.500A1.500 1.500 0 0 1 4.500 6H9l2 2.500h8.500A1.500 1.500 0 0 1 21 10v8a1.500 1.500 0 0 1-1.500 1.500h-15A1.500 1.500 0 0 1 3 18V7.500Z" />
+  </svg>
+);
+
+export const Lupa = ({ size = 18 }) => (
+  <svg {...base} width={size} height={size}>
+    <circle cx="11" cy="11" r="6.500" />
+    <path d="m20 20-4.200-4.200" />
+  </svg>
+);
+
+export const Basura = ({ size = 18 }) => (
+  <svg {...base} width={size} height={size}>
+    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12.500A1.500 1.500 0 0 0 8.500 21h7a1.500 1.500 0 0 0 1.500-1.500L18 7M9 7V4.500h6V7" />
+  </svg>
+);
+
+export const Info = ({ size = 18 }) => (
+  <svg {...base} width={size} height={size}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5.500M12 7.700v.1" />
+  </svg>
+);
+
+export const Mas = ({ size = 18 }) => (
+  <svg {...base} width={size} height={size}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
+export const CheckCirculo = ({ size = 22 }) => (
+  <svg {...base} width={size} height={size}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="m8 12.500 2.800 2.800L16.500 9.500" />
+  </svg>
+);

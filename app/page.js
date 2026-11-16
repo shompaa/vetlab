@@ -5,7 +5,7 @@ import { exportarExcel } from '../src/exportar.js';
 import { RAZAS_INICIALES, clave, coincidencias, excluirPorRaza } from '../src/razas.js';
 import { PANELES } from '../src/reglas.js';
 import { NOMBRES } from '../src/etiquetas.js';
-import { Alerta, Barras, Candado, Capas, Corazon, Excel, Huella, Informe, Nube, Pdf, Refrescar, Usuarios } from './iconos.js';
+import { Alerta, Barras, Basura, Candado, Capas, Carpeta, CheckCirculo, Corazon, Excel, Huella, Info, Informe, Lupa, Mas, Nube, Pdf, Refrescar, Usuarios } from './iconos.js';
 
 const MAX = 1000;
 
@@ -144,15 +144,15 @@ function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso,
           <div className="upload-icon"><Nube /></div>
           <h2>Arrastra tus PDF aquí</h2>
           <p>Hasta {MAX} archivos por tanda.<br />Solo se procesan los datos necesarios del hemograma y del perfil bioquímico.</p>
-          <button type="button" className="pick-btn" onClick={(e) => { e.stopPropagation(); input.current.click(); }}>Elegir archivos</button>
+          <button type="button" className="pick-btn" onClick={(e) => { e.stopPropagation(); input.current.click(); }}><Carpeta /> Elegir archivos</button>
           <input ref={input} type="file" accept=".pdf,application/pdf" multiple hidden onChange={(e) => { agregar(e.target.files); e.target.value = ''; }} />
         </div>
 
         <aside className="upload-side">
           <div className="card steps-card">
-            <div className="step"><div className="step-num">1</div><div><strong>Sube la tanda</strong><span>PDF del mismo laboratorio y de una sola especie.</span></div></div>
-            <div className="step"><div className="step-num">2</div><div><strong>Se leen los valores</strong><span>Solo resultados y rangos necesarios para el análisis.</span></div></div>
-            <div className="step"><div className="step-num">3</div><div><strong>Revisa el resultado</strong><span>Conteos, porcentajes, filtros y exportación.</span></div></div>
+            <div className="step"><div className="step-num">1</div><div className="step-icon"><Nube size={22} /></div><div><strong>Sube la tanda</strong><span>PDF del mismo laboratorio y de una sola especie.</span></div></div>
+            <div className="step"><div className="step-num">2</div><div className="step-icon"><Barras size={22} /></div><div><strong>Se leen los valores</strong><span>Solo resultados y rangos necesarios para el análisis.</span></div></div>
+            <div className="step"><div className="step-num">3</div><div className="step-icon"><CheckCirculo /></div><div><strong>Revisa el resultado</strong><span>Conteos, porcentajes, filtros y exportación.</span></div></div>
           </div>
         </aside>
       </div>
@@ -173,13 +173,16 @@ function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso,
       <div className="card files-card files-main">
         <div className="files-head">
           <h3 role="status">{files.length} archivo(s) en la tanda{files.length >= MAX ? ' (límite alcanzado)' : ''}</h3>
-          <input className="buscar" type="search" aria-label="Buscar entre los archivos subidos" placeholder="Buscar archivo por nombre…" value={buscar} onChange={(e) => setBuscar(e.target.value)} disabled={!files.length} />
+          <div className="buscar-wrap">
+            <Lupa />
+            <input className="buscar" type="search" aria-label="Buscar entre los archivos subidos" placeholder="Buscar archivo por nombre…" value={buscar} onChange={(e) => setBuscar(e.target.value)} disabled={!files.length} />
+          </div>
           <div className="actions">
-            <button className="btn primary" disabled={!files.length || ocupado} onClick={analizar}>Analizar tanda</button>
-            <button className="btn" disabled={!files.length || ocupado} onClick={() => { setFiles([]); setBuscar(''); }}>Vaciar</button>
+            <button className="btn primary" disabled={!files.length || ocupado} onClick={analizar}><Barras size={18} /> Analizar tanda</button>
+            <button className="btn" disabled={!files.length || ocupado} onClick={() => { setFiles([]); setBuscar(''); }}><Basura /> Vaciar</button>
           </div>
         </div>
-        {fallo && <div className="aviso error" role="alert" style={{ marginBottom: 12 }}>No se pudo analizar la tanda: {fallo}. Revisa que el servidor siga abierto e inténtalo de nuevo.</div>}
+        {fallo && <div className="aviso error" role="alert" style={{ marginBottom: 12 }}>No se pudo analizar la tanda: {fallo}. Inténtalo de nuevo.</div>}
         {ocupado ? (
           <div className="analizando">
             <img src={`${BASE}/brand/perro-negro-muestra.webp`} alt="" height="72" />
@@ -214,7 +217,7 @@ function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso,
       </div>
 
       <div className="session-bar">
-        <span>Los PDF se leen en tu navegador y no se envían a ningún servidor. La tanda es temporal: al vaciar o recargar, los datos no se conservan.</span>
+        <span className="sb-izq"><Info /> Los PDF se leen en tu navegador y no se envían a ningún servidor. La tanda es temporal: al vaciar o recargar, los datos no se conservan.</span>
         <span><Candado /> Sin historial</span>
       </div>
     </section>
@@ -327,11 +330,11 @@ function AvisosLectura({ resultados }) {
   );
 }
 
-const CLAVE_RAZAS = 'hemopuppy.razas';
+const CLAVE_RAZAS = 'hemopuppy.razas.v2';
 
 /**
- * Razas fuera del análisis. Las `fijas` (RAZAS_INICIALES) recuerdan su check en este navegador (localStorage);
- * las `temporales` valen solo para la tanda en curso y no se guardan.
+ * Razas fuera del análisis (check = excluir; siempre arrancan marcadas). Las `fijas` (RAZAS_INICIALES) recuerdan su check
+ * en este navegador (localStorage); las `temporales` valen solo para la tanda en curso y no se guardan.
  */
 function useRazas() {
   const [fijas, setFijas] = useState(RAZAS_INICIALES);
@@ -339,12 +342,12 @@ function useRazas() {
   useEffect(() => {
     try {
       const guardadas = JSON.parse(localStorage.getItem(CLAVE_RAZAS));
-      if (Array.isArray(guardadas)) setFijas(RAZAS_INICIALES.map((r) => ({ ...r, tomar: guardadas.find((g) => g.nombre === r.nombre)?.tomar ?? r.tomar })));
+      if (Array.isArray(guardadas)) setFijas(RAZAS_INICIALES.map((r) => ({ ...r, excluir: guardadas.find((g) => g.nombre === r.nombre)?.excluir ?? r.excluir })));
     } catch {}
   }, []);
-  const setFija = (nombre, tomar) =>
+  const setFija = (nombre, excluir) =>
     setFijas((prev) => {
-      const nuevas = prev.map((r) => (r.nombre === nombre ? { ...r, tomar } : r));
+      const nuevas = prev.map((r) => (r.nombre === nombre ? { ...r, excluir } : r));
       try {
         localStorage.setItem(CLAVE_RAZAS, JSON.stringify(nuevas));
       } catch {}
@@ -352,14 +355,14 @@ function useRazas() {
     });
   const agregarTemporal = (nombre) => {
     const n = nombre.trim();
-    if (n && ![...fijas, ...temporales].some((r) => clave(r.nombre) === clave(n))) setTemporales((prev) => [...prev, { nombre: n, tomar: false }]);
+    if (n && ![...fijas, ...temporales].some((r) => clave(r.nombre) === clave(n))) setTemporales((prev) => [...prev, { nombre: n, excluir: true }]);
   };
   return {
     fijas,
     temporales,
     todas: [...fijas, ...temporales],
     setFija,
-    setTemporal: (nombre, tomar) => setTemporales((prev) => prev.map((r) => (r.nombre === nombre ? { ...r, tomar } : r))),
+    setTemporal: (nombre, excluir) => setTemporales((prev) => prev.map((r) => (r.nombre === nombre ? { ...r, excluir } : r))),
     agregarTemporal,
     quitarTemporal: (nombre) => setTemporales((prev) => prev.filter((r) => r.nombre !== nombre)),
     reiniciarTemporales: () => setTemporales([]),
@@ -381,8 +384,8 @@ function RazasFuera({ razas, resultados, abierto }) {
       <summary>
         Razas fuera del análisis <small>{resultados.length ? (totalExcluidos > 0 ? `· ${totalExcluidos} paciente(s) sin contar` : '· ninguna en esta tanda') : '· se aplican solas al analizar'}</small>
       </summary>
-      <p className="cap">
-        Hay razas que casi siempre salen alteradas por su anatomía. Con el check desmarcado, sus pacientes no se cuentan en ninguna cifra, gráfico ni exportación; marca la raza para tomarla en cuenta. El filtro se aplica solo al analizar, sin que tengas que saber qué raza trae cada PDF.
+      <p className="razas-info">
+        <Info /> Marca las razas que quieres excluir del análisis. Se aplican automáticamente al analizar la tanda y sus pacientes no se cuentan en ninguna cifra, gráfico ni exportación.
       </p>
       <ul className="razas-lista">
         {filas.map((r) => {
@@ -390,7 +393,7 @@ function RazasFuera({ razas, resultados, abierto }) {
           return (
             <li key={r.nombre}>
               <label>
-                <input type="checkbox" checked={r.tomar} onChange={(e) => (r.temporal ? razas.setTemporal(r.nombre, e.target.checked) : razas.setFija(r.nombre, e.target.checked))} />
+                <input type="checkbox" checked={r.excluir} onChange={(e) => (r.temporal ? razas.setTemporal(r.nombre, e.target.checked) : razas.setFija(r.nombre, e.target.checked))} />
                 <strong>{r.nombre}</strong>
                 {r.temporal && <em className="temporal">temporal</em>}
               </label>
@@ -405,14 +408,17 @@ function RazasFuera({ razas, resultados, abierto }) {
         })}
       </ul>
       <div className="razas-nueva">
-        <input list="razas-detectadas" value={nueva} onChange={(e) => setNueva(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && agregar()} placeholder="Agregar una raza temporal (como sale en el PDF)" aria-label="Agregar una raza temporal a la lista" />
+        <div className="buscar-wrap">
+          <Lupa />
+          <input className="buscar" list="razas-detectadas" value={nueva} onChange={(e) => setNueva(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && agregar()} placeholder="Agregar una raza temporal (como sale en el PDF)" aria-label="Agregar una raza temporal a la lista" />
+        </div>
         <datalist id="razas-detectadas">
           {detectadas.map((r) => (
             <option key={r} value={r} />
           ))}
         </datalist>
-        <button className="btn" onClick={agregar} disabled={!nueva.trim()}>
-          Agregar
+        <button className="btn borde" onClick={agregar} disabled={!nueva.trim()}>
+          <Mas /> Agregar
         </button>
       </div>
       <p className="cap">Las razas que agregues valen para esta tanda y no se guardan. La coincidencia ignora mayúsculas, tildes y espacios, y tolera pequeños errores de escritura.</p>
