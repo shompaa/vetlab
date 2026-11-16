@@ -92,3 +92,23 @@ export function unificarEspecie(rs) {
   const rechazados = rs.filter((r) => r.especie !== especie).map((r) => ({ id: r.id, motivo: `especie distinta a la tanda (${especie})` }));
   return { resultados: rs.filter((r) => r.especie === especie), rechazados, especie };
 }
+
+const GRUPOS_EDAD = [
+  ['Menos de 1', (e) => e < 1],
+  ['1 a 3', (e) => e >= 1 && e < 4],
+  ['4 a 6', (e) => e >= 4 && e < 7],
+  ['7 a 9', (e) => e >= 7 && e < 10],
+  ['10 o más', (e) => e >= 10],
+];
+
+/** Pacientes con alguna alteración (hemograma o bioquímico) por tramo de edad, en años cumplidos. Los tramos vacíos no salen. */
+export function alteracionesPorEdad(rs) {
+  const conAlteracion = (r) => Object.values({ ...r.hemograma, ...r.bioquimico }).some(alterado);
+  const tramos = [...GRUPOS_EDAD.map(([nombre, en]) => ({ nombre, pacientes: rs.filter((r) => r.edadAnios != null && en(r.edadAnios)) })), { nombre: 'Sin edad', pacientes: rs.filter((r) => r.edadAnios == null) }];
+  return tramos
+    .filter((t) => t.pacientes.length)
+    .map((t) => {
+      const alterados = t.pacientes.filter(conAlteracion).length;
+      return { nombre: t.nombre, total: t.pacientes.length, alterados, pct: pct(alterados, t.pacientes.length) };
+    });
+}

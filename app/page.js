@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useRef, useState } from 'react';
-import { filtrarDemografia, opciones, pacientes, resumen, unificarEspecie } from '../src/agregar.js';
+import { alteracionesPorEdad, filtrarDemografia, opciones, pacientes, resumen, unificarEspecie } from '../src/agregar.js';
 import { exportarExcel } from '../src/exportar.js';
 import { PANELES } from '../src/reglas.js';
 import { NOMBRES } from '../src/etiquetas.js';
@@ -285,6 +285,28 @@ function TablasImpresion({ rs }) {
   ));
 }
 
+function AlteracionesPorEdad({ rs }) {
+  const tramos = useMemo(() => alteracionesPorEdad(rs), [rs]);
+  const mayor = Math.max(...tramos.map((t) => t.pct), 0);
+  return (
+    <div className="charts una">
+      <article className="chart-card por-edad">
+        <h3><Barras size={22} /> Alteraciones por edad</h3>
+        <p className="cap">Porcentaje de pacientes con alguna alteración (hemograma o bioquímico) en cada tramo de edad, en años. A la derecha, alterados sobre pacientes del tramo.</p>
+        <div className="hchart">
+          {tramos.map((t) => (
+            <div className="hrow" key={t.nombre} title={`${t.alterados} de ${t.total} paciente(s) de ${t.nombre} con alguna alteración`}>
+              <span>{t.nombre}</span>
+              <div className="track"><div className="fill" style={{ width: `${t.pct}%` }}><i className={t.pct > 0 && t.pct === mayor ? 'alto' : 'sobre'} style={{ flex: 1 }} /></div></div>
+              <b>{pc(t.pct)} <small>{t.alterados}/{t.total}</small></b>
+            </div>
+          ))}
+        </div>
+      </article>
+    </div>
+  );
+}
+
 function Resultados({ tanda, nuevaTanda }) {
   const [f, setF] = useState({});
   const [panel, setPanel] = useState('hemograma');
@@ -349,6 +371,11 @@ function Resultados({ tanda, nuevaTanda }) {
         </div>
       )}
 
+      {tanda.resultados.some((r) => r.sinBioquimico) && (
+        <div className="aviso no-print" role="status">
+          {tanda.resultados.filter((r) => r.sinBioquimico).length} archivo(s) no traían perfil bioquímico: cuentan en el hemograma y quedan sin dato en el bioquímico.
+        </div>
+      )}
       {exp === 'error' && <div className="aviso error no-print" role="alert">No se pudo generar el Excel. Inténtalo de nuevo.</div>}
       {rangoMal && <div className="aviso no-print" role="alert">La edad mínima es mayor que la máxima, por eso no hay pacientes. Corrige el rango o límpialo.</div>}
       <div className="toolbar no-print">
@@ -434,6 +461,8 @@ function Resultados({ tanda, nuevaTanda }) {
           )}
         </article>
       </div>
+
+      <AlteracionesPorEdad rs={rs} />
 
       <article className="card table-card no-print">
         <h3><Informe size={22} /> Detalle por parámetro</h3>
