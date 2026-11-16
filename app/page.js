@@ -324,23 +324,19 @@ function AvisosLectura({ resultados }) {
   const conAviso = resultados.filter((r) => r.advertencias?.length);
   if (!conAviso.length) return null;
   return (
-    <div className="aviso no-print" role="status">
-      <p>{conAviso.length} archivo(s) con avisos de lectura. Un examen sin datos o con problemas no se cuenta para ese paciente:</p>
+    <details className="aviso no-print" role="status" open={conAviso.length <= 5}>
+      <summary>
+        <strong>{conAviso.length} archivo(s) con avisos de lectura.</strong> Un examen sin datos o con problemas no se cuenta para ese paciente.
+      </summary>
       <ul>
-        {conAviso.slice(0, 30).map((r) => (
+        {conAviso.map((r) => (
           <li key={r.id}>{r.id}: {r.advertencias.join('; ')}</li>
         ))}
       </ul>
-    </div>
+    </details>
   );
 }
 
-const CLAVE_RAZAS = 'hemopuppy.razas.v2';
-
-/**
- * Razas fuera del análisis (check = excluir; siempre arrancan marcadas). Las `fijas` (RAZAS_INICIALES) recuerdan su check
- * en este navegador (localStorage); las `temporales` valen solo para la tanda en curso y no se guardan.
- */
 function useRazas() {
   const [fijas, setFijas] = useState(RAZAS_INICIALES);
   const [temporales, setTemporales] = useState([]);

@@ -48,10 +48,26 @@ for (const texto of ['Mx coagulada', 'a']) {
   assert.ok(Object.values(out).every((a) => a.estado === 'no_medido'), 'un panel con problemas queda sin datos');
 }
 
-const alto = conEstado('bioquimico', { glucosa: '>500' });
-assert.equal(alto.out.glucosa.estado, 'no_medido');
-assert.equal(alto.out.albumina.estado, 'normal');
-assert.deepEqual(alto.e, { notas: ['Glucosa «>500» se tomó como sin dato'], problema: null });
+const limite = (analito, texto) => conEstado('bioquimico', { [analito]: texto });
+
+const ggt = limite('ggt', '< 5,8');
+assert.equal(ggt.out.ggt.estado, 'normal');
+assert.equal(ggt.out.ggt.valor, null);
+assert.deepEqual(ggt.e, { notas: [], problema: null });
+assert.equal(limite('ggt', '<5,8').out.ggt.estado, 'normal');
+
+const muyAlta = limite('glucosa', '>500');
+assert.deepEqual([muyAlta.out.glucosa.estado, muyAlta.out.glucosa.severidad, muyAlta.out.glucosa.g3], ['alto', 'moderada', true]);
+assert.equal(limite('albumina', '<1,2').out.albumina.estado, 'bajo');
+
+const dudoso = limite('bilirrubina_total', '< 0,2');
+assert.equal(dudoso.out.bilirrubina_total.estado, 'no_medido');
+assert.deepEqual(dudoso.e, { notas: ['Bilirrubina total «< 0,2» no alcanza para decidir y se tomó como sin dato'], problema: null });
+assert.equal(limite('glucosa', '>100').out.glucosa.estado, 'no_medido');
+
+const asterisco = limite('fosforo', '*');
+assert.equal(asterisco.out.fosforo.estado, 'no_medido');
+assert.deepEqual(asterisco.e, { notas: ['Fósforo «*» sin valor, se tomó como sin dato'], problema: null });
 
 const x = (str, xPos, y) => item(str, xPos, y);
 const cab = cabeceraBioquimico([x('NOMBRE:', 62, 800), x('RAZA', 62, 788), x('BORDER COLLIE', 90, 788), x('ESPECIE:CANINO', 62, 776), x('EDAD:NO INFORMADO', 62, 764), x('SEXO:HEMBRA', 62, 752)]);

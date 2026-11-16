@@ -83,6 +83,21 @@ export function leerPanel(clave, items, especie, confiable, estado = { notas: []
   return estado.problema ? armar(clave, {}, especie, confiable) : out;
 }
 
+/**
+ * Un valor con límite ("< 5,8", "> 500") se interpreta cuando alcanza para decidir el estado contra el rango:
+ * "< X" es normal si el rango parte en 0 y X no pasa del máximo, y es bajo si X no pasa del mínimo; "> X" es alto si X llega al máximo.
+ * Devuelve un valor de referencia para clasificar, o null si no alcanza.
+ */
+function valorDeLimite(signo, x, refMin, refMax) {
+  if (signo === '<' || signo === '≤') {
+    if (x <= refMin) return x * (1 - 1e-6);
+    if (refMin <= 0 && x <= refMax) return x / 2;
+    return null;
+  }
+  return x >= refMax ? x * (1 + 1e-6) : null;
+}
+
+/** Arma los analitos de un panel. Un valor que no es número queda sin dato; si no tiene explicación, el panel no se cuenta (`estado.problema`). */
 function armar(clave, crudos, especie, confiable, estado = { notas: [], problema: null }) {
   const panel = PANELES[clave];
   const out = {};
@@ -91,10 +106,23 @@ function armar(clave, crudos, especie, confiable, estado = { notas: [], problema
     const v = f ? col(f, panel.col.valor) : '';
     const [refMin, refMax] = REFERENCIAS[especie][k];
     let valor = v ? num(v, def.valor) : null;
+    let clasificado = null;
     if (valor !== null && Number.isNaN(valor)) {
-      if (refMin != null && /^\s*[<>≤≥]/.test(v)) estado.notas.push(`${NOMBRES[k]} «${v.trim()}» se tomó como sin dato`);
-      else if (refMin != null) estado.problema ??= `${NOMBRES[k]} «${v.trim()}»`;
-      valor = null;
+      const texto = v.trim();
+      const lim = /^([<>≤≥])\s*([\d.,]+)$/.exec(texto);
+      if (refMin == null) valor = null;
+      else if (lim) {
+        const ref = valorDeLimite(lim[1], num(lim[2], def.valor), refMin, refMax);
+        if (ref == null) estado.notas.push(`${NOMBRES[k]} «${texto}» no alcanza para decidir y se tomó como sin dato`);
+        else clasificado = clasificar(especie, k, { valor: ref, refMin, refMax }, confiable(k));
+        valor = null;
+      } else if (/^[^\p{L}\p{N}]+$/u.test(texto)) {
+        estado.notas.push(`${NOMBRES[k]} «${texto}» sin valor, se tomó como sin dato`);
+        valor = null;
+      } else {
+        estado.problema ??= `${NOMBRES[k]} «${texto}»`;
+        valor = null;
+      }
     }
     const pct = f && panel.col.pct ? col(f, panel.col.pct) : '';
     const u = f ? col(f, panel.col.unidad) : '';
@@ -103,7 +131,7 @@ function armar(clave, crudos, especie, confiable, estado = { notas: [], problema
       ...base,
       unidad: UNIDADES[u] ?? u,
       pct: pct ? parseFloat(pct) : null,
-      ...clasificar(especie, k, base, confiable(k)),
+      ...(clasificado ?? clasificar(especie, k, base, confiable(k))),
     };
   }
   return out;
