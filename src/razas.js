@@ -1,8 +1,8 @@
 /**
  * Razas que se pueden dejar fuera del análisis (por ejemplo, braquicéfalas, que casi siempre salen alteradas).
- * `tomar: false` = los pacientes de esa raza no se cuentan.
+ * `excluir: true` = los pacientes de esa raza no se cuentan.
  */
-export const RAZAS_INICIALES = ['Bulldog Inglés', 'Bulldog Francés', 'Pug (Carlino)', 'Boston Terrier'].map((nombre) => ({ nombre, tomar: false }));
+export const RAZAS_INICIALES = ['Bulldog Inglés', 'Bulldog Francés', 'Pug (Carlino)', 'Boston Terrier'].map((nombre) => ({ nombre, excluir: true }));
 
 const ALIAS = {
   bulldogingles: ['English Bulldog'],
@@ -41,9 +41,9 @@ export function coincide(razaPdf, nombreLista) {
   return variantes(nombreLista).some((v) => r === v || (v.length >= 4 && r.includes(v)) || palabras.includes(v) || parecido(r, v) >= 0.85);
 }
 
-/** Separa los pacientes cuya raza está en la lista con `tomar: false`. `excluidos` cuenta cuántos salieron por cada raza de la lista. */
+/** Separa los pacientes cuya raza está en la lista con `excluir: true`. `excluidos` cuenta cuántos salieron por cada raza de la lista. */
 export function excluirPorRaza(rs, razas) {
-  const fuera = razas.filter((r) => !r.tomar);
+  const fuera = razas.filter((r) => r.excluir);
   const excluidos = {};
   const incluidos = [];
   for (const p of rs) {

@@ -31,7 +31,7 @@ no('Dachshund', 'Pug (Carlino)');
 no(null, 'Pug (Carlino)');
 no('', 'Pug (Carlino)');
 
-assert.deepEqual(RAZAS_INICIALES.map((r) => [r.nombre, r.tomar]), [['Bulldog Inglés', false], ['Bulldog Francés', false], ['Pug (Carlino)', false], ['Boston Terrier', false]]);
+assert.deepEqual(RAZAS_INICIALES.map((r) => [r.nombre, r.excluir]), [['Bulldog Inglés', true], ['Bulldog Francés', true], ['Pug (Carlino)', true], ['Boston Terrier', true]]);
 
 const pacientes = [{ raza: 'Pug' }, { raza: 'Bulldog Ingles' }, { raza: 'Mestizo' }, { raza: null }, { raza: 'Dachshund' }];
 const r = excluirPorRaza(pacientes, RAZAS_INICIALES);
@@ -39,10 +39,10 @@ assert.deepEqual(r.incluidos.map((p) => p.raza), ['Mestizo', null, 'Dachshund'])
 assert.deepEqual(r.excluidos, { 'Pug (Carlino)': 1, 'Bulldog Inglés': 1 });
 assert.equal(r.totalExcluidos, 2);
 
-const tomando = RAZAS_INICIALES.map((x) => (x.nombre.startsWith('Pug') ? { ...x, tomar: true } : x));
+const tomando = RAZAS_INICIALES.map((x) => (x.nombre.startsWith('Pug') ? { ...x, excluir: false } : x));
 assert.equal(excluirPorRaza(pacientes, tomando).incluidos.length, 4);
 
-const agregada = [...RAZAS_INICIALES, { nombre: 'Dachshund', tomar: false }];
+const agregada = [...RAZAS_INICIALES, { nombre: 'Dachshund', excluir: true }];
 assert.deepEqual(excluirPorRaza(pacientes, agregada).incluidos.map((p) => p.raza), ['Mestizo', null]);
 
 const c = coincidencias(pacientes, agregada);
