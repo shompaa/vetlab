@@ -170,6 +170,16 @@ button { cursor: pointer; }
 
 .charts { display: grid; grid-template-columns: 1.05fr 1.15fr 1.05fr; gap: 12px; margin-bottom: 12px; }
 .chart-card { padding: 18px 20px; border: 1px solid var(--line); border-radius: 18px; background: #fffdfa; box-shadow: 0 6px 18px rgba(60, 72, 68, 0.06); }
+.razas-card { padding: 14px 18px; margin-bottom: 12px; }
+.razas-card summary { cursor: pointer; font-weight: 650; font-size: 15px; }
+.razas-card summary small { font-weight: 500; color: var(--muted); }
+.razas-lista { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 8px; }
+.razas-lista li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 10px; border: 1px solid #eee8df; border-radius: 12px; background: #fff; }
+.razas-lista label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.razas-lista input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--teal); }
+.razas-lista small { color: var(--muted); font-size: 12px; flex: 1 1 240px; }
+.razas-nueva { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.razas-nueva input { flex: 1 1 260px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; font: inherit; font-size: 14px; }
 .charts.una { grid-template-columns: 1fr; }
 .por-edad .hrow { grid-template-columns: 110px 1fr 120px; }
 .fill i.sobre { background: #f4a3a3; }

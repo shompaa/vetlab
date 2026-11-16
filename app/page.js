@@ -1,7 +1,8 @@
 'use client';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { alteracionesPorEdad, filtrarDemografia, opciones, pacientes, resumen, unificarEspecie, unificarTextos } from '../src/agregar.js';
 import { exportarExcel } from '../src/exportar.js';
+import { RAZAS_INICIALES, clave, coincidencias, excluirPorRaza } from '../src/razas.js';
 import { PANELES } from '../src/reglas.js';
 import { NOMBRES } from '../src/etiquetas.js';
 import { Alerta, Barras, Candado, Capas, Corazon, Excel, Huella, Informe, Nube, Pdf, Refrescar, Usuarios } from './iconos.js';
@@ -322,6 +323,86 @@ function AvisosLectura({ resultados }) {
   );
 }
 
+const CLAVE_RAZAS = 'hemopuppy.razas';
+
+/** Lista de razas con check "tomar en cuenta". Se recuerda en este navegador (localStorage) para no rearmarla en cada tanda. */
+function useRazas() {
+  const [razas, setRazas] = useState(RAZAS_INICIALES);
+  useEffect(() => {
+    try {
+      const guardadas = JSON.parse(localStorage.getItem(CLAVE_RAZAS));
+      if (Array.isArray(guardadas) && guardadas.every((r) => typeof r?.nombre === 'string')) setRazas(guardadas);
+    } catch {}
+  }, []);
+  const cambiar = (f) =>
+    setRazas((prev) => {
+      const nuevas = f(prev);
+      try {
+        localStorage.setItem(CLAVE_RAZAS, JSON.stringify(nuevas));
+      } catch {}
+      return nuevas;
+    });
+  return [razas, cambiar];
+}
+
+function RazasFuera({ razas, cambiar, resultados, excluidos }) {
+  const [nueva, setNueva] = useState('');
+  const coinc = useMemo(() => coincidencias(resultados, razas), [resultados, razas]);
+  const detectadas = useMemo(() => [...new Set(resultados.map((r) => r.raza).filter(Boolean))].sort(), [resultados]);
+  const total = Object.values(excluidos).reduce((a, b) => a + b, 0);
+  const iniciales = new Set(RAZAS_INICIALES.map((r) => r.nombre));
+  const agregar = () => {
+    const nombre = nueva.trim();
+    if (nombre && !razas.some((r) => clave(r.nombre) === clave(nombre))) cambiar((prev) => [...prev, { nombre, tomar: false }]);
+    setNueva('');
+  };
+  return (
+    <details className="card razas-card no-print">
+      <summary>
+        Razas fuera del análisis <small>{total > 0 ? `· ${total} paciente(s) sin contar` : '· ninguna en esta tanda'}</small>
+      </summary>
+      <p className="cap">Hay razas que casi siempre salen alteradas por su anatomía. Con el check desmarcado, sus pacientes no se cuentan en ninguna cifra, gráfico ni exportación. Marca la raza para tomarla en cuenta.</p>
+      <ul className="razas-lista">
+        {coinc.map((c) => (
+          <li key={c.nombre}>
+            <label>
+              <input type="checkbox" checked={razas.find((r) => r.nombre === c.nombre).tomar} onChange={(e) => cambiar((prev) => prev.map((r) => (r.nombre === c.nombre ? { ...r, tomar: e.target.checked } : r)))} />
+              <strong>{c.nombre}</strong>
+            </label>
+            <small>
+              {c.n ? `${c.n} paciente(s) en esta tanda (en el PDF: ${Object.entries(c.vistas).map(([v, n]) => `${v} ×${n}`).join(', ')})` : 'ninguno en esta tanda'}
+            </small>
+            {!iniciales.has(c.nombre) && (
+              <button className="remove" aria-label={`Quitar ${c.nombre} de la lista`} onClick={() => cambiar((prev) => prev.filter((r) => r.nombre !== c.nombre))}>
+                ×
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="razas-nueva">
+        <input list="razas-detectadas" value={nueva} onChange={(e) => setNueva(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && agregar()} placeholder="Agregar otra raza (escríbela como sale en el PDF)" aria-label="Agregar otra raza a la lista" />
+        <datalist id="razas-detectadas">
+          {detectadas.map((r) => (
+            <option key={r} value={r} />
+          ))}
+        </datalist>
+        <button className="btn" onClick={agregar} disabled={!nueva.trim()}>
+          Agregar
+        </button>
+      </div>
+      <p className="cap">Al escribir, se sugieren las razas que aparecen en esta tanda. La coincidencia ignora mayúsculas, tildes y espacios, y tolera pequeños errores de escritura.</p>
+    </details>
+  );
+}
+
+function detalleTanda(enTanda, gen, excluidos) {
+  const partes = [`${enTanda} en la tanda`];
+  if (excluidos) partes.push(`${excluidos} sin contar por raza`);
+  if (gen.porPanel.hemograma !== gen.total || gen.porPanel.bioquimico !== gen.total) partes.push(`hemograma ${gen.porPanel.hemograma}`, `bioquímico ${gen.porPanel.bioquimico}`);
+  return partes.join(' · ');
+}
+
 function Resultados({ tanda, nuevaTanda }) {
   const [f, setF] = useState({});
   const [panel, setPanel] = useState('hemograma');
@@ -330,13 +411,15 @@ function Resultados({ tanda, nuevaTanda }) {
   const [verTodos, setVerTodos] = useState(false);
   const [orden, setOrden] = useState({ col: null, dir: 'desc' });
   const refPac = useRef(null);
+  const [razas, cambiarRazas] = useRazas();
   const set = (k) => (e) => {
     const v = e.target.value;
     setF((p) => ({ ...p, [k]: v === '' ? undefined : k.startsWith('edad') ? Number(v) : v }));
   };
 
-  const op = useMemo(() => opciones(tanda.resultados), [tanda]);
-  const rs = useMemo(() => filtrarDemografia(tanda.resultados, f), [tanda, f]);
+  const { incluidos, excluidos, totalExcluidos } = useMemo(() => excluirPorRaza(tanda.resultados, razas), [tanda, razas]);
+  const op = useMemo(() => opciones(incluidos), [incluidos]);
+  const rs = useMemo(() => filtrarDemografia(incluidos, f), [incluidos, f]);
   const gen = useMemo(() => resumen(rs, 'general'), [rs]);
   const res = useMemo(() => resumen(rs, panel), [rs, panel]);
   const lista = useMemo(
@@ -389,6 +472,8 @@ function Resultados({ tanda, nuevaTanda }) {
       <AvisosLectura resultados={tanda.resultados} />
       {exp === 'error' && <div className="aviso error no-print" role="alert">No se pudo generar el Excel. Inténtalo de nuevo.</div>}
       {rangoMal && <div className="aviso no-print" role="alert">La edad mínima es mayor que la máxima, por eso no hay pacientes. Corrige el rango o límpialo.</div>}
+      <RazasFuera razas={razas} cambiar={cambiarRazas} resultados={tanda.resultados} excluidos={excluidos} />
+
       <div className="toolbar no-print">
         <div className="filters">
           <div className="field"><label htmlFor="f-sexo">Sexo</label>
@@ -421,7 +506,7 @@ function Resultados({ tanda, nuevaTanda }) {
       )}
       <div hidden={gen.total === 0}>
       <div className="kpis">
-        <Tarjeta icono={<Usuarios />} t={`Pacientes analizados · ${tanda.especie}`} n={gen.total} p={gen.porPanel.hemograma === gen.total && gen.porPanel.bioquimico === gen.total ? `${tanda.resultados.length} en la tanda` : `${tanda.resultados.length} en la tanda · hemograma ${gen.porPanel.hemograma} · bioquímico ${gen.porPanel.bioquimico}`} />
+        <Tarjeta icono={<Usuarios />} t={`Pacientes analizados · ${tanda.especie}`} n={gen.total} p={detalleTanda(tanda.resultados.length, gen, totalExcluidos)} />
         <Tarjeta icono={<Alerta />} t="Con alguna alteración" n={gen.conAlterados} pct={gen.pctAlterados} p={`${pc(gen.pctAlterados)} de los pacientes`} />
         <Tarjeta icono={<Barras />} t="Con alteración moderada" n={gen.conModerada} pct={gen.pctModerada} p={`${pc(gen.pctModerada)} de los pacientes`} />
         <Tarjeta icono={<Informe />} t="Plaquetas no fiables (agregados)" n={gen.plaquetas.noFiables} pct={gen.plaquetas.pctNoFiables} p={`${pc(gen.plaquetas.pctNoFiables)} de los pacientes`} />
