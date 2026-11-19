@@ -229,7 +229,7 @@ function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso,
   );
 }
 
-const COLOR = { sin: '#5fb3a1', leve: '#f2b441', moderada: '#e5534b', hemograma: '#e5534b', bioquimico: '#3a9ad9', ambos: '#8a5fd0', ninguno: '#5fb3a1' };
+const COLOR = { sin: '#2f9e83', leve: '#d9920f', moderada: '#d9453d', hemograma: '#d9453d', bioquimico: '#2f84c7', ambos: '#8a3fb5', ninguno: '#2f9e83' };
 
 function Donut({ conAlt, total, segmentos }) {
   let acc = 0;
@@ -573,8 +573,8 @@ function PacientesPorParametro({ r, sufijo }) {
       <h3><Capas /> Pacientes alterados por parámetro{sufijo}</h3>
       <p className="cap">Cada parámetro con pacientes fuera de rango, del más al menos alterado. Los porcentajes son sobre los pacientes con ese valor medido.</p>
       <div className="legend-chips">
-        <div className="chip-fila"><span className="dot" style={{ background: '#e5534b' }} /><div>Por sobre el rango</div></div>
-        <div className="chip-fila"><span className="dot" style={{ background: '#3a9ad9' }} /><div>Por debajo del rango</div></div>
+        <div className="chip-fila"><span className="dot" style={{ background: '#d9453d' }} /><div>Por sobre el rango</div></div>
+        <div className="chip-fila"><span className="dot" style={{ background: '#2f84c7' }} /><div>Por debajo del rango</div></div>
         <div className="chip-fila"><span className="dot" style={{ background: COLOR.leve }} /><div>Leve y moderada: columnas de la derecha (solo parámetros con escala VCOG)</div></div>
       </div>
       {top.length ? (
@@ -584,7 +584,7 @@ function PacientesPorParametro({ r, sufijo }) {
             {top.map((x) => (
               <div className="prm-fila" key={x.k} title={`${x.nombre}: ${x.alto} por sobre y ${x.bajo} por debajo, de ${x.medidos} medidos`}>
                 <span className="prm-nombre">{x.nombre}</span>
-                <div className="track"><div className="fill" style={{ width: `${(x.alterados / max) * 100}%` }}><i style={{ flex: x.alto, background: '#e5534b' }} /><i style={{ flex: x.bajo, background: '#3a9ad9' }} /></div></div>
+                <div className="track"><div className="fill" style={{ width: `${(x.alterados / max) * 100}%` }}><i style={{ flex: x.alto, background: '#d9453d' }} /><i style={{ flex: x.bajo, background: '#2f84c7' }} /></div></div>
                 <span className="prm-n"><b>{x.alterados}</b><small>{pc(x.pct)}</small></span>
                 {celda(x.alto, x.medidos, 'alto')}
                 {celda(x.bajo, x.medidos, 'bajo')}

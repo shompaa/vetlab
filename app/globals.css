@@ -483,3 +483,29 @@ td.cero { color: #aab4b6; font-weight: 400; }
 .bars i:hover { filter: brightness(0.92); }
 .prm .fill i { display: block; }
 @media print { .legend-row { padding: 2px 4px; } .donut { width: 120px; height: 120px; } .donut::after { width: 74px; height: 74px; } .legend-chips { font-size: 10px; gap: 4px 10px; } }
+
+/* Pulido visual: segmentos separados, sombras teñidas, entrada escalonada, hover */
+.bars i s + s { border-top: 2px solid var(--panel); }
+.barra-apilada { gap: 2px; background: transparent; }
+.barra-apilada i:first-child { border-radius: 7px 0 0 7px; }
+.barra-apilada i:last-child { border-radius: 0 7px 7px 0; }
+.chart-card, .kpi, .table-card, .pacientes-card { box-shadow: 0 1px 2px rgba(12, 45, 57, 0.05), 0 8px 24px -12px rgba(12, 45, 57, 0.14); }
+.kpi { transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease); }
+.kpi:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(12, 45, 57, 0.06), 0 14px 28px -12px rgba(12, 45, 57, 0.2); }
+.legend-row { transition: background 0.2s var(--ease), transform 0.2s var(--ease); }
+.legend-row:hover { background: #f3eee2; transform: translateX(2px); }
+.gl { border-color: #eee8dc; }
+.prm-fila:not(.prm-cab) { transition: background 0.15s; }
+.prm-fila:not(.prm-cab):hover { background: #faf6ec; }
+.chart-card h3 { letter-spacing: -0.01em; }
+.chart-card .cap { max-width: 62ch; text-wrap: pretty; }
+.det-fila b { font-variant-numeric: tabular-nums lining-nums; }
+@keyframes entra { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.kpis > *, .charts > *, .table-card, .pacientes-card { animation: entra 0.5s var(--ease) both; }
+.kpis > :nth-child(2), .charts > :nth-child(2) { animation-delay: 0.06s; }
+.kpis > :nth-child(3), .charts > :nth-child(3) { animation-delay: 0.12s; }
+.kpis > :nth-child(4), .charts > :nth-child(4) { animation-delay: 0.18s; }
+@keyframes crece { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.bars i { transform-origin: bottom; animation: crece 0.6s var(--ease) both; }
+.donut { animation: entra 0.6s var(--ease) both; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
