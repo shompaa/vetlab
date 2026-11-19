@@ -24,7 +24,7 @@ assert.equal(r.porAnalito.hemoglobina.alterados, 1);
 assert.equal(r.porAnalito.hemoglobina.pct, 25);
 assert.equal(r.porAnalito.hematocrito.medidos, 3);
 assert.equal(r.porAnalito.plaquetas.pct, 33.3);
-assert.deepEqual(r.alteradosPorPaciente.find((x) => x.n === 0), { n: 0, pacientes: 1 });
+assert.deepEqual(r.alteradosPorPaciente.find((x) => x.n === 0), { n: 0, pacientes: 1, moderada: 0 });
 
 assert.equal(filtrarDemografia(rs, { sexo: 'Hembra' }).length, 2);
 assert.equal(filtrarDemografia(rs, { edadMin: 4, edadMax: 6 }).length, 2);
@@ -71,5 +71,15 @@ assert.equal(g.plaquetas.pctNoFiables, 100);
 const textos = unificarTextos([{ raza: 'Pastor Americano', sexo: 'Hembra' }, { raza: 'P astor Amer ic ano', sexo: 'Hembr a' }, { raza: null, sexo: 'Macho' }]);
 assert.deepEqual(textos.map((t) => t.raza), ['Pastor Americano', 'Pastor Americano', null]);
 assert.deepEqual(textos.map((t) => t.sexo), ['Hembra', 'Hembra', 'Macho']);
+
+const bioPorEdad = alteracionesPorEdad(rs, 'bioquimico');
+assert.deepEqual(bioPorEdad.map((t) => [t.nombre, t.total, t.alterados]), [['1 a 3', 1, 0], ['4 a 6', 2, 1], ['7 a 9', 1, 0]]);
+const hemoPorEdad = alteracionesPorEdad(rs, 'hemograma');
+assert.deepEqual(hemoPorEdad.map((t) => [t.nombre, t.alterados]), [['1 a 3', 1], ['4 a 6', 1], ['7 a 9', 1]]);
+
+const alts = resumen(rs, 'hemograma').alteraciones;
+assert.deepEqual([alts.total, alts.alto, alts.bajo, alts.leve, alts.moderada, alts.g3, alts.sinEscala], [3, 1, 2, 1, 1, 0, 1]);
+assert.equal(resumen(rs, 'bioquimico').alteraciones.g3, 1);
+assert.equal(resumen(rs, 'general').alteraciones.total, 4);
 
 console.log('OK agregar');

@@ -229,10 +229,17 @@ function Subida({ files, setFiles, sobre, setSobre, agregar, analizar, progreso,
   );
 }
 
-function Donut({ conAlt, total }) {
-  const p = total ? (conAlt / total) * 100 : 0;
+const COLOR = { sin: '#5fb3a1', leve: '#f2b441', moderada: '#e5534b', hemograma: '#e5534b', bioquimico: '#3a9ad9', ambos: '#8a5fd0', ninguno: '#5fb3a1' };
+
+function Donut({ conAlt, total, segmentos }) {
+  let acc = 0;
+  const partes = segmentos.filter((s) => s.n > 0).map((s) => {
+    const a = acc;
+    acc += total ? (s.n / total) * 100 : 0;
+    return `${s.color} ${a}% ${acc}%`;
+  });
   return (
-    <div className="donut" role="img" aria-label={`${conAlt} de ${total} pacientes con alteraciones`} style={{ background: `conic-gradient(#f26b6b 0 ${p}%, #7cc4b5 0)` }}>
+    <div className="donut" role="img" aria-label={`${conAlt} de ${total} pacientes con alteraciones`} style={{ background: `conic-gradient(${partes.join(', ') || '#e6e0d3 0 100%'})` }}>
       <div className="donut-label"><strong>{conAlt}</strong><small>pacientes</small></div>
     </div>
   );
@@ -240,29 +247,61 @@ function Donut({ conAlt, total }) {
 
 function Histograma({ datos, total }) {
   const tope = 10;
-  const bins = Array.from({ length: Math.min(Math.max(0, ...datos.map((d) => d.n)), tope) + 1 }, (_, n) => ({ n, pacientes: 0 }));
-  for (const d of datos) bins[Math.min(d.n, tope)].pacientes += d.pacientes;
+  const bins = Array.from({ length: Math.min(Math.max(0, ...datos.map((d) => d.n)), tope) + 1 }, (_, n) => ({ n, pacientes: 0, moderada: 0 }));
+  for (const d of datos) {
+    bins[Math.min(d.n, tope)].pacientes += d.pacientes;
+    bins[Math.min(d.n, tope)].moderada += d.moderada;
+  }
   const max = Math.max(1, ...bins.map((b) => b.pacientes));
   const paso = max > 8 ? Math.ceil(max / 4) : 1;
   const ticks = [];
   for (let t = 0; t <= max; t += paso) ticks.push(t);
   const nombre = (b) => (b.n === tope ? `${tope}+` : b.n);
+  const porcentaje = (n) => pc(total ? (n / total) * 100 : 0);
+
+  const orden = [...datos].sort((a, b) => a.n - b.n);
+  const promedio = total ? orden.reduce((s, d) => s + d.n * d.pacientes, 0) / total : 0;
+  let acumulado = 0;
+  const mediana = orden.find((d) => (acumulado += d.pacientes) >= total / 2)?.n ?? 0;
+  const mayor = orden.filter((d) => d.pacientes > 0).at(-1)?.n ?? 0;
+  const cincoOMas = orden.filter((d) => d.n >= 5).reduce((s, d) => s + d.pacientes, 0);
   return (
-    <div className="vchart">
-      <div className="yaxis">{ticks.map((t) => <span key={t} style={{ bottom: `${(t / max) * 100}%` }}>{t}</span>)}</div>
-      <div className="plot">
-        {ticks.map((t) => <div key={t} className="gl" style={{ bottom: `${(t / max) * 100}%` }} />)}
-        <div className="bars">
-          {bins.map((b) => (
-            <i key={b.n} className={b.n === 0 ? 'ok' : ''} title={`${b.pacientes} paciente(s) con ${nombre(b)} parámetro(s) alterado(s) (${pc(total ? (b.pacientes / total) * 100 : 0)})`} style={{ height: `${(b.pacientes / max) * 100}%` }}>
-              <em>{b.pacientes}</em>
-            </i>
-          ))}
+    <>
+      <div className="vchart">
+        <div className="yaxis">{ticks.map((t) => <span key={t} style={{ bottom: `${(t / max) * 100}%` }}>{t}</span>)}</div>
+        <div className="plot">
+          {ticks.map((t) => <div key={t} className="gl" style={{ bottom: `${(t / max) * 100}%` }} />)}
+          <div className="bars">
+            {bins.map((b) => (
+              <i key={b.n} title={`${b.pacientes} paciente(s) con ${nombre(b)} parámetro(s) alterado(s) (${porcentaje(b.pacientes)})${b.n ? ` · ${b.moderada} con alguna moderada o más` : ''}`} style={{ height: `${(b.pacientes / max) * 100}%` }}>
+                <em>{b.pacientes}</em>
+                {b.n === 0 ? <s style={{ flex: 1, background: COLOR.sin }} /> : (
+                  <>
+                    <s style={{ flex: b.moderada, background: COLOR.moderada }} />
+                    <s style={{ flex: b.pacientes - b.moderada, background: COLOR.leve }} />
+                  </>
+                )}
+              </i>
+            ))}
+          </div>
         </div>
+        <div className="xlab">{bins.map((b) => <span key={b.n}>{nombre(b)}<small>{porcentaje(b.pacientes)}</small></span>)}</div>
+        <div className="xtit">Parámetros alterados en el paciente (debajo, % de los pacientes)</div>
       </div>
-      <div className="xlab">{bins.map((b) => <span key={b.n}>{nombre(b)}</span>)}</div>
-      <div className="xtit">Parámetros alterados en el paciente</div>
-    </div>
+      <div className="legend-chips">
+        <div className="chip-fila"><span className="dot" style={{ background: COLOR.sin }} /><div>Sin alteraciones</div></div>
+        <div className="chip-fila"><span className="dot" style={{ background: COLOR.leve }} /><div>Solo leves o sin escala</div></div>
+        <div className="chip-fila"><span className="dot" style={{ background: COLOR.moderada }} /><div>Con alguna moderada o más</div></div>
+      </div>
+      <div className="detalle-grid una-col">
+        <section>
+          <div className="det-fila"><span>Promedio por paciente</span><b>{promedio.toLocaleString('es-CL', { maximumFractionDigits: 1 })} <small>parámetros alterados</small></b></div>
+          <div className="det-fila"><span>Mediana</span><b>{mediana} <small>parámetro(s)</small></b></div>
+          <div className="det-fila"><span>Máximo en un paciente</span><b>{mayor} <small>parámetro(s)</small></b></div>
+          <div className="det-fila"><span>Pacientes con 5 o más</span><b>{porcentaje(cincoOMas)} <small>({cincoOMas} de {total})</small></b></div>
+        </section>
+      </div>
+    </>
   );
 }
 
@@ -277,9 +316,9 @@ function Tarjeta({ icono, t, n, p, pct }) {
   );
 }
 
-function TablasImpresion({ rs }) {
-  const paneles = useMemo(() => Object.entries(PANELES).map(([k, p]) => ({ k, nombre: p.nombre, filas: Object.entries(resumen(rs, k).porAnalito).filter(([, c]) => c.medidos > 0 || c.noFiable > 0) })), [rs]);
-  return paneles.map(({ k, nombre, filas }) => (
+function TablasImpresion({ rs, paneles }) {
+  const tablas = useMemo(() => paneles.map((k) => ({ k, nombre: PANELES[k].nombre, filas: Object.entries(resumen(rs, k).porAnalito).filter(([, c]) => c.medidos > 0 || c.noFiable > 0) })), [rs, paneles]);
+  return tablas.map(({ k, nombre, filas }) => (
     <article key={k} className="card tabla-imp">
       <h3>Detalle por parámetro · {nombre}</h3>
       <table>
@@ -298,8 +337,8 @@ function TablasImpresion({ rs }) {
   ));
 }
 
-function AlteracionesPorEdad({ rs }) {
-  const tramos = useMemo(() => alteracionesPorEdad(rs), [rs]);
+function AlteracionesPorEdad({ rs, examen }) {
+  const tramos = useMemo(() => alteracionesPorEdad(rs, examen), [rs, examen]);
   const mayor = Math.max(...tramos.map((t) => t.pct), 0);
   return (
     <div className="charts una">
@@ -427,6 +466,12 @@ function RazasFuera({ razas, resultados, abierto }) {
   );
 }
 
+const DONUT_TEXTO = {
+  general: 'Pacientes con al menos un parámetro fuera de su rango de referencia, en hemograma o bioquímico.',
+  hemograma: 'Pacientes con al menos un parámetro del hemograma fuera de su rango de referencia, sobre los que traen hemograma.',
+  bioquimico: 'Pacientes con al menos un parámetro del perfil bioquímico fuera de su rango de referencia, sobre los que traen perfil.',
+};
+
 function detalleTanda(enTanda, gen, excluidos) {
   const partes = [`${enTanda} en la tanda`];
   if (excluidos) partes.push(`${excluidos} sin contar por raza`);
@@ -434,13 +479,184 @@ function detalleTanda(enTanda, gen, excluidos) {
   return partes.join(' · ');
 }
 
+const EXAMENES = [['general', 'Todos los exámenes'], ['hemograma', 'Hemograma'], ['bioquimico', 'Perfil bioquímico']];
+const FOCO_INICIAL = { analito: null, estado: 'alterado', severidad: '', plaquetasNoFiables: false };
+const ordenados = (r) => Object.entries(r.porAnalito).map(([k, c]) => ({ k, nombre: NOMBRES[k], ...c })).filter((x) => x.alterados > 0).sort((a, b) => b.alterados - a.alterados);
+
+function DetalleFila({ etiqueta, n, de, sufijoDe }) {
+  return (
+    <div className="det-fila"><span>{etiqueta}</span><b>{pc(pctDe(n, de))} <small>({n} de {de}{sufijoDe})</small></b></div>
+  );
+}
+
+function LeyendaFila({ t, n, total, color, chip }) {
+  return (
+    <div className={chip ? 'chip-fila' : 'legend-row'}>
+      <span className="dot" style={{ background: color }} />
+      <div>{t}{chip ? ' · ' : <br />}<b>{pc(pctDe(n, total))} ({n} de {total})</b></div>
+    </div>
+  );
+}
+
+function PacientesConAlteraciones({ r, examen, sufijo }) {
+  const a = r.alteraciones;
+  const mas = ordenados(r).slice(0, 3);
+  const niv = [
+    { k: 'sin', t: 'Sin alteraciones', n: r.niveles.sin, color: COLOR.sin },
+    { k: 'leve', t: 'Solo alteraciones leves o sin escala', n: r.niveles.leve, color: COLOR.leve },
+    { k: 'moderada', t: 'Con alguna moderada o más', n: r.niveles.moderada, color: COLOR.moderada },
+  ];
+  const grp = [
+    { k: 'ninguno', t: 'Ninguno', n: r.grupos.ninguno, color: COLOR.ninguno },
+    { k: 'hemograma', t: 'Solo hemograma', n: r.grupos.hemograma, color: COLOR.hemograma },
+    { k: 'bioquimico', t: 'Solo perfil bioquímico', n: r.grupos.bioquimico, color: COLOR.bioquimico },
+    { k: 'ambos', t: 'Ambos exámenes', n: r.grupos.ambos, color: COLOR.ambos },
+  ];
+  return (
+    <article className="chart-card">
+      <h3><Usuarios size={22} /> Pacientes con alteraciones{sufijo}</h3>
+      <p className="cap">{DONUT_TEXTO[examen]}</p>
+      <div className="donut-area">
+        <Donut conAlt={r.conAlterados} total={r.total} segmentos={niv} />
+        <div className="legend">
+          {niv.map((s) => <LeyendaFila key={s.k} {...s} total={r.total} />)}
+        </div>
+      </div>
+      {examen === 'general' && (
+        <div className="origen">
+          <h4>Dónde están las alteraciones <small>pacientes según el examen en que se alteran</small></h4>
+          <div className="barra-apilada" role="img" aria-label="Pacientes por examen alterado">
+            {grp.map((s) => s.n > 0 && <i key={s.k} style={{ flex: s.n, background: s.color }} title={`${s.t}: ${s.n}`} />)}
+          </div>
+          <div className="legend-chips">{grp.map((s) => <LeyendaFila key={s.k} {...s} total={r.total} chip />)}</div>
+        </div>
+      )}
+      <div className="detalle-grid">
+        <section>
+          <h4>Pacientes</h4>
+          <DetalleFila etiqueta="Con alteración moderada" n={r.conModerada} de={r.total} />
+          {examen === 'general' && (
+            <>
+              <DetalleFila etiqueta="Alterados en hemograma" n={r.origen.hemograma.n} de={r.origen.hemograma.de} />
+              <DetalleFila etiqueta="Alterados en perfil bioquímico" n={r.origen.bioquimico.n} de={r.origen.bioquimico.de} />
+              <DetalleFila etiqueta="Alterados en ambos" n={r.origen.ambos.n} de={r.origen.ambos.de} />
+            </>
+          )}
+        </section>
+        <section>
+          <h4>Alteraciones registradas <small>{a.total} de {a.medidas} valores medidos ({pc(pctDe(a.total, a.medidas))})</small></h4>
+          <DetalleFila etiqueta="Por sobre el rango" n={a.alto} de={a.total} />
+          <DetalleFila etiqueta="Por debajo del rango" n={a.bajo} de={a.total} />
+          <DetalleFila etiqueta="Leves" n={a.leve} de={a.total} />
+          <DetalleFila etiqueta="Moderadas o más" n={a.moderada} de={a.total} sufijoDe={a.g3 ? ` · ${a.g3} ≥G3` : ''} />
+          <DetalleFila etiqueta="Sin escala de severidad" n={a.sinEscala} de={a.total} />
+        </section>
+        <section>
+          <h4>Los más alterados <small>% de los pacientes con ese valor medido</small></h4>
+          {mas.length ? mas.map((x) => <DetalleFila key={x.k} etiqueta={x.nombre} n={x.alterados} de={x.medidos} />) : <p className="vacio">Ninguno.</p>}
+        </section>
+      </div>
+    </article>
+  );
+}
+
+function PacientesPorParametro({ r, sufijo }) {
+  const [verTodos, setVerTodos] = useState(false);
+  const altos = ordenados(r);
+  const top = verTodos ? altos : altos.slice(0, 10);
+  const max = Math.max(1, altos[0]?.alterados ?? 1);
+  const celda = (n, medidos, clase) => (
+    <span className={`prm-n ${n ? clase : 'cero'}`}>{n}<small>{pc(pctDe(n, medidos))}</small></span>
+  );
+  return (
+    <article className="chart-card">
+      <h3><Capas /> Pacientes alterados por parámetro{sufijo}</h3>
+      <p className="cap">Cada parámetro con pacientes fuera de rango, del más al menos alterado. Los porcentajes son sobre los pacientes con ese valor medido.</p>
+      <div className="legend-chips">
+        <div className="chip-fila"><span className="dot" style={{ background: '#e5534b' }} /><div>Por sobre el rango</div></div>
+        <div className="chip-fila"><span className="dot" style={{ background: '#3a9ad9' }} /><div>Por debajo del rango</div></div>
+        <div className="chip-fila"><span className="dot" style={{ background: COLOR.leve }} /><div>Leve y moderada: columnas de la derecha (solo parámetros con escala VCOG)</div></div>
+      </div>
+      {top.length ? (
+        <div className="prm-wrap">
+          <div className="prm">
+            <div className="prm-fila prm-cab"><span>Parámetro</span><span>Pacientes alterados</span><span>Alterados</span><span>Por sobre</span><span>Por debajo</span><span>Leve</span><span>Moderada</span><span>Medidos</span></div>
+            {top.map((x) => (
+              <div className="prm-fila" key={x.k} title={`${x.nombre}: ${x.alto} por sobre y ${x.bajo} por debajo, de ${x.medidos} medidos`}>
+                <span className="prm-nombre">{x.nombre}</span>
+                <div className="track"><div className="fill" style={{ width: `${(x.alterados / max) * 100}%` }}><i style={{ flex: x.alto, background: '#e5534b' }} /><i style={{ flex: x.bajo, background: '#3a9ad9' }} /></div></div>
+                <span className="prm-n"><b>{x.alterados}</b><small>{pc(x.pct)}</small></span>
+                {celda(x.alto, x.medidos, 'alto')}
+                {celda(x.bajo, x.medidos, 'bajo')}
+                {celda(x.leve, x.medidos, 'leve')}
+                {celda(x.moderada, x.medidos, 'moderada')}
+                <span className="prm-n">{x.medidos}</span>
+              </div>
+            ))}
+          </div>
+          {altos.length > 10 && <button className="link-btn" onClick={() => setVerTodos((v) => !v)}>{verTodos ? 'Ver menos' : `Ver los ${altos.length} parámetros`}</button>}
+        </div>
+      ) : (
+        <p className="vacio">Ningún parámetro alterado con estos filtros.</p>
+      )}
+    </article>
+  );
+}
+
+function PanelDetalle({ rs, clave, seleccionado, onSeleccionar }) {
+  const res = useMemo(() => resumen(rs, clave), [rs, clave]);
+  const [orden, setOrden] = useState({ col: null, dir: 'desc' });
+  const todas = Object.entries(res.porAnalito).map(([k, c]) => ({ k, nombre: NOMBRES[k], ...c }));
+  const filas = todas.filter((x) => x.medidos > 0 || x.noFiable > 0);
+  const sinDatos = todas.filter((x) => !(x.medidos > 0 || x.noFiable > 0)).map((x) => x.nombre);
+  const valor = (x, c) => (c === 'nombre' ? x.nombre : c === 'sinDato' ? x.noMedido + x.sinRef : x[c]);
+  const filasOrd = orden.col
+    ? [...filas].sort((a, b) => {
+        const va = valor(a, orden.col);
+        const vb = valor(b, orden.col);
+        const d = typeof va === 'string' ? va.localeCompare(vb, 'es') : va - vb;
+        return orden.dir === 'asc' ? d : -d;
+      })
+    : filas;
+  const ordenar = (c) => setOrden((o) => (o.col === c ? (o.dir === 'desc' ? { col: c, dir: 'asc' } : { col: null, dir: 'desc' }) : { col: c, dir: c === 'nombre' ? 'asc' : 'desc' }));
+  return (
+    <article className="card table-card no-print">
+      <h3><Informe size={22} /> Detalle por parámetro · {PANELES[clave].nombre} <small>{res.total} paciente(s)</small></h3>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              {[['nombre', 'Parámetro'], ['medidos', 'Medidos'], ['normal', 'Normal'], ['alto', 'Alto'], ['bajo', 'Bajo'], ['leve', 'Leve'], ['moderada', 'Moderada'], ['pct', '% alterado'], ['sinDato', 'Sin dato'], ['noFiable', 'No fiable']].map(([c, t]) => (
+                <th key={c} aria-sort={orden.col === c ? (orden.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button className="th-sort" data-on={orden.col === c} onClick={() => ordenar(c)}>{t}<span className="fl" aria-hidden="true">{orden.col === c ? (orden.dir === 'asc' ? '▲' : '▼') : '▲▼'}</span></button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filasOrd.map((x) => {
+              const n = (v, c) => <td className={v ? c : c ? 'cero' : ''}>{v}</td>;
+              return (
+                <tr key={x.k} className={seleccionado === x.k ? 'sel' : ''} tabIndex={0} aria-selected={seleccionado === x.k} onClick={() => onSeleccionar(x.k)} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.click()}>
+                  <td>{x.nombre}</td>{n(x.medidos, '')}{n(x.normal, '')}{n(x.alto, 'alto')}{n(x.bajo, 'bajo')}{n(x.leve, 'leve')}{n(x.moderada, 'moderada')}
+                  <td><div className="pct"><div className="pct-track"><div className={`pct-fill ${x.pct >= 50 ? 'alta' : x.pct >= 25 ? 'media' : 'baja'}`} style={{ width: `${x.pct}%` }} /></div><b>{pc(x.pct)}</b></div></td>
+                  {n(x.noMedido + x.sinRef, 'cero')}{n(x.noFiable, 'cero')}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="nota">% alterado = alterados sobre los pacientes con ese parámetro medido y fiable. Severidad solo donde existe escala publicada (VCOG-CTCAE v2). Haz clic en una fila para ver qué archivos cumplen.{sinDatos.length > 0 && ` Sin datos en esta tanda: ${sinDatos.join(', ')}.`}</p>
+    </article>
+  );
+}
+
 function Resultados({ tanda, nuevaTanda, razas }) {
   const [f, setF] = useState({});
-  const [panel, setPanel] = useState('hemograma');
-  const [foco, setFoco] = useState({ analito: null, estado: 'alterado', severidad: '', plaquetasNoFiables: false });
+  const [examen, setExamen] = useState('general');
+  const [foco, setFoco] = useState(FOCO_INICIAL);
   const [exp, setExp] = useState(null);
-  const [verTodos, setVerTodos] = useState(false);
-  const [orden, setOrden] = useState({ col: null, dir: 'desc' });
   const refPac = useRef(null);
   const set = (k) => (e) => {
     const v = e.target.value;
@@ -451,34 +667,22 @@ function Resultados({ tanda, nuevaTanda, razas }) {
   const op = useMemo(() => opciones(incluidos), [incluidos]);
   const rs = useMemo(() => filtrarDemografia(incluidos, f), [incluidos, f]);
   const gen = useMemo(() => resumen(rs, 'general'), [rs]);
-  const res = useMemo(() => resumen(rs, panel), [rs, panel]);
+  const r = useMemo(() => resumen(rs, examen), [rs, examen]);
   const lista = useMemo(
-    () => pacientes(rs, { ...foco, estado: foco.estado === 'alterado' ? undefined : foco.estado, severidad: foco.severidad || undefined }, panel),
-    [rs, foco, panel],
+    () => pacientes(rs, { ...foco, estado: foco.estado === 'alterado' ? undefined : foco.estado, severidad: foco.severidad || undefined }, examen),
+    [rs, foco, examen],
   );
-  const cambiarPanel = (p) => {
-    setPanel(p);
-    setFoco({ analito: null, estado: 'alterado', severidad: '', plaquetasNoFiables: false });
-    setVerTodos(false);
-    setOrden({ col: null, dir: 'desc' });
-  };
-  const todas = Object.entries(res.porAnalito).map(([k, c]) => ({ k, nombre: NOMBRES[k], ...c }));
+  const paneles = examen === 'general' ? Object.keys(PANELES) : [examen];
+  const sufijo = examen === 'general' ? '' : ` · ${PANELES[examen].nombre}`;
   const rangoMal = f.edadMin != null && f.edadMax != null && f.edadMin > f.edadMax;
-  const filas = todas.filter((x) => x.medidos > 0 || x.noFiable > 0);
-  const sinDatos = todas.filter((x) => !(x.medidos > 0 || x.noFiable > 0)).map((x) => x.nombre);
-  const altos = Object.entries(gen.porAnalito).map(([k, c]) => ({ k, nombre: NOMBRES[k], ...c })).filter((x) => x.alterados > 0).sort((a, b) => b.alterados - a.alterados);
-  const top = verTodos ? altos : altos.slice(0, 5);
-  const maxTop = Math.max(1, altos[0]?.alterados ?? 1);
-  const valor = (x, c) => (c === 'nombre' ? x.nombre : c === 'sinDato' ? x.noMedido + x.sinRef : x[c]);
-  const filasOrd = orden.col
-    ? [...filas].sort((a, b) => {
-        const va = valor(a, orden.col);
-        const vb = valor(b, orden.col);
-        const r = typeof va === 'string' ? va.localeCompare(vb, 'es') : va - vb;
-        return orden.dir === 'asc' ? r : -r;
-      })
-    : filas;
-  const ordenar = (c) => setOrden((o) => (o.col === c ? (o.dir === 'desc' ? { col: c, dir: 'asc' } : { col: null, dir: 'desc' }) : { col: c, dir: c === 'nombre' ? 'asc' : 'desc' }));
+  const cambiarExamen = (k) => {
+    setExamen(k);
+    setFoco(FOCO_INICIAL);
+  };
+  const seleccionar = (analito) => {
+    setFoco((p) => ({ ...p, analito: p.analito === analito ? null : analito, plaquetasNoFiables: false }));
+    refPac.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   if (!tanda.resultados.length) {
     return (
@@ -505,6 +709,14 @@ function Resultados({ tanda, nuevaTanda, razas }) {
       <RazasFuera razas={razas} resultados={tanda.resultados} />
 
       <div className="toolbar no-print">
+        <div className="examen-sel" role="group" aria-label="Examen que muestra toda la página">
+          <span>Examen</span>
+          {EXAMENES.map(([k, t]) => (
+            <button key={k} aria-pressed={examen === k} className={`btn ${examen === k ? 'on' : ''}`} onClick={() => cambiarExamen(k)}>
+              {t}{k !== 'general' && <small> · {gen.porPanel[k]} paciente(s)</small>}
+            </button>
+          ))}
+        </div>
         <div className="filters">
           <div className="field"><label htmlFor="f-sexo">Sexo</label>
             <select id="f-sexo" value={f.sexo ?? ''} onChange={set('sexo')}><option value="">Todos</option>{op.sexos.map((s) => <option key={s}>{s}</option>)}</select></div>
@@ -535,131 +747,60 @@ function Resultados({ tanda, nuevaTanda, razas }) {
         </div>
       )}
       <div hidden={gen.total === 0}>
-      <div className="kpis">
-        <Tarjeta icono={<Usuarios />} t={`Pacientes analizados · ${tanda.especie}`} n={gen.total} p={detalleTanda(tanda.resultados.length, gen, totalExcluidos)} />
-        <Tarjeta icono={<Alerta />} t="Con alguna alteración" n={gen.conAlterados} pct={gen.pctAlterados} p={`${pc(gen.pctAlterados)} de los pacientes`} />
-        <Tarjeta icono={<Barras />} t="Con alteración moderada" n={gen.conModerada} pct={gen.pctModerada} p={`${pc(gen.pctModerada)} de los pacientes`} />
-        <Tarjeta icono={<Informe />} t="Plaquetas no fiables (agregados)" n={gen.plaquetas.noFiables} pct={gen.plaquetas.pctNoFiables} p={`${pc(gen.plaquetas.pctNoFiables)} de los pacientes`} />
-      </div>
+        {gen.total > 0 && r.total === 0 && <div className="aviso" role="status">Ningún paciente de esta selección trae {PANELES[examen].nombre.toLowerCase()}.</div>}
 
-      <div className="charts">
-        <article className="chart-card">
-          <h3><Usuarios size={22} /> Pacientes con alteraciones</h3>
-          <p className="cap">Pacientes con al menos un parámetro fuera de su rango de referencia, en hemograma o bioquímico.</p>
-          <div className="donut-area">
-            <Donut conAlt={gen.conAlterados} total={gen.total} />
-            <div className="legend">
-              <div className="legend-row"><span className="dot" style={{ background: '#ee5d5d' }} /><div>Con alteraciones<br /><b>{pc(gen.pctAlterados)} ({gen.conAlterados})</b>
-                <span className="desglose">
-                  <span>En hemograma: <b>{pc(pctDe(gen.origen.hemograma.n, gen.origen.hemograma.de))} ({gen.origen.hemograma.n} de {gen.origen.hemograma.de})</b></span>
-                  <span>En perfil bioquímico: <b>{pc(pctDe(gen.origen.bioquimico.n, gen.origen.bioquimico.de))} ({gen.origen.bioquimico.n} de {gen.origen.bioquimico.de})</b></span>
-                  <span>En ambos: <b>{pc(pctDe(gen.origen.ambos.n, gen.origen.ambos.de))} ({gen.origen.ambos.n} de {gen.origen.ambos.de})</b></span>
-                </span></div></div>
-              <div className="legend-row"><span className="dot" style={{ background: '#73b8aa' }} /><div>Sin alteraciones<br /><b>{pc(100 - gen.pctAlterados)} ({gen.sinAlterados})</b></div></div>
-            </div>
+        <div className="kpis">
+          <Tarjeta icono={<Usuarios />} t={`Pacientes analizados · ${tanda.especie}${sufijo}`} n={r.total} p={detalleTanda(tanda.resultados.length, gen, totalExcluidos)} />
+          <Tarjeta icono={<Alerta />} t="Con alguna alteración" n={r.conAlterados} pct={r.pctAlterados} p={`${pc(r.pctAlterados)} de los pacientes`} />
+          <Tarjeta icono={<Barras />} t="Con alteración moderada" n={r.conModerada} pct={r.pctModerada} p={`${pc(r.pctModerada)} de los pacientes`} />
+          {r.plaquetas && <Tarjeta icono={<Informe />} t="Plaquetas no fiables (agregados)" n={r.plaquetas.noFiables} pct={r.plaquetas.pctNoFiables} p={`${pc(r.plaquetas.pctNoFiables)} de los pacientes`} />}
+        </div>
+
+        <div className="charts">
+          <PacientesConAlteraciones r={r} examen={examen} sufijo={sufijo} />
+          <article className="chart-card">
+            <h3><Barras size={22} /> Parámetros alterados por paciente{sufijo}</h3>
+            <p className="cap">Cuántos pacientes tienen 0, 1, 2… parámetros fuera de rango. La barra verde son los pacientes sin alteraciones.</p>
+            <Histograma datos={r.alteradosPorPaciente} total={r.total} />
+          </article>
+          <PacientesPorParametro r={r} sufijo={sufijo} />
+        </div>
+
+        <AlteracionesPorEdad rs={rs} examen={examen} />
+
+        {paneles.map((k) => (
+          <PanelDetalle key={k} rs={rs} clave={k} seleccionado={foco.analito} onSeleccionar={seleccionar} />
+        ))}
+
+        <div className="solo-print"><TablasImpresion rs={rs} paneles={paneles} /></div>
+
+        <article className="card pacientes-card" ref={refPac}>
+          <h3>
+            Pacientes{sufijo}
+            {foco.analito && (
+              <button className="filtro-activo no-print" onClick={() => setFoco((p) => ({ ...p, analito: null }))} aria-label={`Quitar filtro de ${NOMBRES[foco.analito]}`}>
+                {NOMBRES[foco.analito]} <span aria-hidden="true">×</span>
+              </button>
+            )}
+          </h3>
+          <div className="filtros-pac no-print">
+            <div className="field"><label htmlFor="p-estado">Estado</label>
+              <select id="p-estado" value={foco.estado} onChange={(e) => setFoco((p) => ({ ...p, estado: e.target.value, plaquetasNoFiables: false }))}>
+                <option value="alterado">Alterado (alto o bajo)</option><option value="alto">Alto</option><option value="bajo">Bajo</option>
+              </select></div>
+            <div className="field"><label htmlFor="p-sev">Severidad</label>
+              <select id="p-sev" value={foco.severidad} onChange={(e) => setFoco((p) => ({ ...p, severidad: e.target.value }))}>
+                <option value="">Cualquiera</option><option value="leve">Leve</option><option value="moderada">Moderada</option>
+              </select></div>
+            {r.plaquetas && <button className={`btn ${foco.plaquetasNoFiables ? 'on' : ''}`} onClick={() => setFoco((p) => ({ ...p, plaquetasNoFiables: !p.plaquetasNoFiables }))}>Plaquetas no fiables</button>}
           </div>
-        </article>
-
-        <article className="chart-card">
-          <h3><Barras size={22} /> Parámetros alterados por paciente</h3>
-          <p className="cap">Cuántos pacientes tienen 0, 1, 2… parámetros fuera de rango. La barra verde son los pacientes sin alteraciones.</p>
-          <Histograma datos={gen.alteradosPorPaciente} total={gen.total} />
-        </article>
-
-        <article className="chart-card">
-          <h3><Capas /> Pacientes alterados por parámetro</h3>
-          <p className="cap">Los parámetros con más pacientes fuera de rango. <span className="sw alto" /> por sobre el rango · <span className="sw bajo" /> por debajo.</p>
-          {top.length ? (
-            <div className="hchart">
-              {top.map((x) => (
-                <div className="hrow" key={x.k} title={`${x.nombre}: ${x.alto} alto(s), ${x.bajo} bajo(s) de ${x.medidos} medidos`}>
-                  <span>{x.nombre}</span>
-                  <div className="track"><div className="fill" style={{ width: `${(x.alterados / maxTop) * 100}%` }}><i className="alto" style={{ flex: x.alto }} /><i className="bajo" style={{ flex: x.bajo }} /></div></div>
-                  <b>{x.alterados} <small>{pc(x.pct)}</small></b>
-                </div>
-              ))}
-              {altos.length > 5 && (
-                <button className="link-btn" onClick={() => setVerTodos((v) => !v)}>{verTodos ? 'Ver menos' : `Ver los ${altos.length} parámetros`}</button>
-              )}
-            </div>
+          <p className="estado" role="status"><strong>{lista.length}</strong> paciente(s) con este filtro</p>
+          {lista.length ? (
+            <div className="chips">{lista.map((p) => <span key={p.id} className="chip">{p.id}</span>)}</div>
           ) : (
-            <p className="vacio">Ningún parámetro alterado con estos filtros.</p>
+            <div className="vacio-img"><img src={`${BASE}/brand/pareja-estetoscopio.webp`} alt="" /><span>Ningún paciente cumple esta combinación. Prueba con otro estado o severidad.</span></div>
           )}
         </article>
-      </div>
-
-      <AlteracionesPorEdad rs={rs} />
-
-      <article className="card table-card no-print">
-        <h3><Informe size={22} /> Detalle por parámetro</h3>
-        <nav className="tabs sub no-print" aria-label="Tipo de examen">
-          {Object.entries(PANELES).map(([k, p]) => (
-            <button key={k} className="tab" aria-current={panel === k ? 'page' : undefined} onClick={() => cambiarPanel(k)}>{p.nombre}</button>
-          ))}
-        </nav>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                {[['nombre', 'Parámetro'], ['medidos', 'Medidos'], ['normal', 'Normal'], ['alto', 'Alto'], ['bajo', 'Bajo'], ['leve', 'Leve'], ['moderada', 'Moderada'], ['pct', '% alterado'], ['sinDato', 'Sin dato'], ['noFiable', 'No fiable']].map(([c, t]) => (
-                  <th key={c} aria-sort={orden.col === c ? (orden.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                    <button className="th-sort" data-on={orden.col === c} onClick={() => ordenar(c)}>{t}<span className="fl" aria-hidden="true">{orden.col === c ? (orden.dir === 'asc' ? '▲' : '▼') : '▲▼'}</span></button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filasOrd.map((x) => {
-                const n = (v, c) => <td className={v ? c : c ? 'cero' : ''}>{v}</td>;
-                return (
-                  <tr key={x.k} className={foco.analito === x.k ? 'sel' : ''} tabIndex={0} aria-selected={foco.analito === x.k}
-                    onClick={() => {
-                      setFoco((p) => ({ ...p, analito: p.analito === x.k ? null : x.k, plaquetasNoFiables: false }));
-                      refPac.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.click()}>
-                    <td>{x.nombre}</td>{n(x.medidos, '')}{n(x.normal, '')}{n(x.alto, 'alto')}{n(x.bajo, 'bajo')}{n(x.leve, 'leve')}{n(x.moderada, 'moderada')}
-                    <td><div className="pct"><div className="pct-track"><div className={`pct-fill ${x.pct >= 50 ? 'alta' : x.pct >= 25 ? 'media' : 'baja'}`} style={{ width: `${x.pct}%` }} /></div><b>{pc(x.pct)}</b></div></td>
-                    {n(x.noMedido + x.sinRef, 'cero')}{n(x.noFiable, 'cero')}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <p className="nota">% alterado = alterados sobre los pacientes con ese parámetro medido y fiable. Severidad solo donde existe escala publicada (VCOG-CTCAE v2). Haz clic en una fila para ver qué archivos cumplen.{sinDatos.length > 0 && ` Sin datos en esta tanda: ${sinDatos.join(', ')}.`}</p>
-      </article>
-
-      <div className="solo-print"><TablasImpresion rs={rs} /></div>
-
-      <article className="card pacientes-card" ref={refPac}>
-        <h3>
-          Pacientes
-          {foco.analito && (
-            <button className="filtro-activo no-print" onClick={() => setFoco((p) => ({ ...p, analito: null }))} aria-label={`Quitar filtro de ${NOMBRES[foco.analito]}`}>
-              {NOMBRES[foco.analito]} <span aria-hidden="true">×</span>
-            </button>
-          )}
-        </h3>
-        <div className="filtros-pac no-print">
-          <div className="field"><label htmlFor="p-estado">Estado</label>
-            <select id="p-estado" value={foco.estado} onChange={(e) => setFoco((p) => ({ ...p, estado: e.target.value, plaquetasNoFiables: false }))}>
-              <option value="alterado">Alterado (alto o bajo)</option><option value="alto">Alto</option><option value="bajo">Bajo</option>
-            </select></div>
-          <div className="field"><label htmlFor="p-sev">Severidad</label>
-            <select id="p-sev" value={foco.severidad} onChange={(e) => setFoco((p) => ({ ...p, severidad: e.target.value }))}>
-              <option value="">Cualquiera</option><option value="leve">Leve</option><option value="moderada">Moderada</option>
-            </select></div>
-          {res.plaquetas && <button className={`btn ${foco.plaquetasNoFiables ? 'on' : ''}`} onClick={() => setFoco((p) => ({ ...p, plaquetasNoFiables: !p.plaquetasNoFiables }))}>Plaquetas no fiables</button>}
-        </div>
-        <p className="estado" role="status"><strong>{lista.length}</strong> paciente(s) con este filtro</p>
-        {lista.length ? (
-          <div className="chips">{lista.map((r) => <span key={r.id} className="chip">{r.id}</span>)}</div>
-        ) : (
-          <div className="vacio-img"><img src={`${BASE}/brand/pareja-estetoscopio.webp`} alt="" /><span>Ningún paciente cumple esta combinación. Prueba con otro estado o severidad.</span></div>
-        )}
-      </article>
-
       </div>
 
       <div className="bottom-actions no-print"><button className="btn" onClick={nuevaTanda}>Subir otra tanda</button></div>

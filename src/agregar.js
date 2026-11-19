@@ -58,11 +58,25 @@ export function resumen(todos, panel = 'hemograma') {
     c.pct = pct(c.alterados, c.medidos);
     porAnalito[k] = c;
   }
+  const alteraciones = { medidas: 0, alto: 0, bajo: 0, leve: 0, moderada: 0, g3: 0 };
+  for (const c of Object.values(porAnalito)) for (const k of Object.keys(alteraciones)) alteraciones[k] += k === 'medidas' ? c.medidos : c[k];
+  alteraciones.total = alteraciones.alto + alteraciones.bajo;
+  alteraciones.sinEscala = alteraciones.total - alteraciones.leve - alteraciones.moderada;
   const noFiables = porAnalito.plaquetas?.noFiable;
   const dist = {};
+  const niveles = { sin: 0, leve: 0, moderada: 0 };
+  const grupos = { ninguno: 0, hemograma: 0, bioquimico: 0, ambos: 0 };
   for (const r of rs) {
-    const n = Object.values(datos(r, panel)).filter(alterado).length;
-    dist[n] = (dist[n] ?? 0) + 1;
+    const vs = Object.values(datos(r, panel));
+    const n = vs.filter(alterado).length;
+    const mod = vs.some((a) => a.severidad === 'moderada');
+    dist[n] ??= { pacientes: 0, moderada: 0 };
+    dist[n].pacientes++;
+    if (mod) dist[n].moderada++;
+    niveles[n === 0 ? 'sin' : mod ? 'moderada' : 'leve']++;
+    const h = cuenta(r, 'hemograma') && Object.values(r.hemograma).some(alterado);
+    const b = cuenta(r, 'bioquimico') && Object.values(r.bioquimico).some(alterado);
+    grupos[h && b ? 'ambos' : h ? 'hemograma' : b ? 'bioquimico' : 'ninguno']++;
   }
   return {
     total,
@@ -71,6 +85,7 @@ export function resumen(todos, panel = 'hemograma') {
     pctAlterados: pct(conAlterados, total),
     conModerada,
     pctModerada: pct(conModerada, total),
+    alteraciones,
     porPanel: { hemograma: todos.filter((r) => cuenta(r, 'hemograma')).length, bioquimico: todos.filter((r) => cuenta(r, 'bioquimico')).length },
     origen: origen(todos),
     plaquetas: porAnalito.plaquetas && {
@@ -81,7 +96,9 @@ export function resumen(todos, panel = 'hemograma') {
       altas: porAnalito.plaquetas.alto,
     },
     porAnalito,
-    alteradosPorPaciente: Object.entries(dist).map(([n, pacientes]) => ({ n: Number(n), pacientes })),
+    niveles,
+    grupos,
+    alteradosPorPaciente: Object.entries(dist).map(([n, d]) => ({ n: Number(n), ...d })),
   };
 }
 
@@ -132,9 +149,10 @@ const GRUPOS_EDAD = [
   ['10 o más', (e) => e >= 10],
 ];
 
-/** Pacientes con alguna alteración (hemograma o bioquímico) por tramo de edad, en años cumplidos. Los tramos vacíos no salen. */
-export function alteracionesPorEdad(rs) {
-  const conAlteracion = (r) => Object.values({ ...r.hemograma, ...r.bioquimico }).some(alterado);
+/** Pacientes con alguna alteración por tramo de edad, en años cumplidos, solo en el examen pedido ('general' = hemograma o bioquímico). Los tramos vacíos no salen. */
+export function alteracionesPorEdad(todos, panel = 'general') {
+  const rs = todos.filter((r) => cuenta(r, panel));
+  const conAlteracion = (r) => Object.values(datos(r, panel)).some(alterado);
   const tramos = [...GRUPOS_EDAD.map(([nombre, en]) => ({ nombre, pacientes: rs.filter((r) => r.edadAnios != null && en(r.edadAnios)) })), { nombre: 'Sin edad', pacientes: rs.filter((r) => r.edadAnios == null) }];
   return tramos
     .filter((t) => t.pacientes.length)
